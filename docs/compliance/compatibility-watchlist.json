@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "description": "Compatibility signal configuration for VideoDefaults compatibility watcher",
+  "trackedLabels": [
+    "compatibility", "firefox", "youtube", "mv3", "amo", "ci", "release", "regression"
+  ],
+  "highSeverityLabelCombos": [
+    ["compatibility", "regression"],
+    ["firefox", "regression"],
+    ["youtube", "regression"]
+  ],
+  "highSeverityKeywordPairs": [
+    {
+      "triggers": ["youtube changed", "youtube update"],
+      "indicators": ["speed not working", "broken", "not applying"]
+    },
+    {
+      "triggers": ["amo", "review"],
+      "indicators": ["rejected", "rejection", "policy violation"]
+    },
+    {
+      "triggers": ["firefox"],
+      "indicators": ["manifest error", "runtime error", "extension error"]
+    }
+  ],
+  "speedReportThreshold": 3,
+  "recentDays": 14,
+  "notifyOnSeverity": "high"
+}

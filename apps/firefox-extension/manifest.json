@@ -11,6 +11,7 @@
     {
       "matches": ["https://www.youtube.com/*"],
       "js": ["src/content/content.js"],
+      "type": "module",
       "run_at": "document_idle"
     }
   ],

@@ -1,0 +1,45 @@
+name: Compatibility Watch
+
+on:
+  schedule:
+    - cron: "30 6 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: "Watch scope (all)"
+        required: false
+        default: "all"
+      fail_on:
+        description: "Fail on severity level (high/medium/low/never)"
+        required: false
+        default: "high"
+
+permissions:
+  contents: read
+  issues: read
+
+jobs:
+  watch:
+    name: Compatibility Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run compatibility watcher
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 tools/compatibility-watch/compatibility_watch.py \
+            --repo "$GITHUB_REPOSITORY" \
+            --mode ci \
+            --fail-on "${{ github.event.inputs.fail_on || 'high' }}" \
+            --scope "${{ github.event.inputs.scope || 'all' }}" \
+            --output-dir dist
+
+      - name: Upload compatibility reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compatibility-report-${{ github.run_id }}
+          path: dist/compatibility-*.json
+          retention-days: 90

@@ -1,0 +1,24 @@
+name: Release Main
+
+on:
+  push:
+    branches: [main]
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Not active in MVP. See docs/release/versioning.md for the planned release path.
+# Future steps: full CI → AMO signing → artifact upload → GitHub release.
+# Requires secrets: AMO_ISSUER, AMO_SECRET (set in repo settings, never in code).
+# This workflow must not run on untrusted PR contexts with privileged secrets.
+
+jobs:
+  placeholder:
+    name: Release pipeline (not yet active)
+    runs-on: ubuntu-latest
+    if: false
+    steps:
+      - run: echo "placeholder — implement release pipeline before enabling"

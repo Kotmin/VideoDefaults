@@ -9,3 +9,5 @@ Commits: conventional (`type(scope): desc`); types: feat fix docs test refactor 
 Branches: `dev` (active, push allowed) → `main` (release only, linear, no merge commits)
 
 MCP: playwright via `.mcp.json` (Firefox, local install)
+
+Skills: ponytail full is the base — question YAGNI first; stdlib before custom; native platform before dependencies; minimum code that works

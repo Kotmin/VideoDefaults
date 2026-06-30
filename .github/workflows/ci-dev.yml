@@ -1,0 +1,41 @@
+name: CI Dev
+
+on:
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    name: Check / Test / Package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dev dependencies
+        run: npm ci
+
+      - name: Syntax check and manifest validation
+        run: bash scripts/check.sh
+
+      - name: Unit tests
+        run: bash scripts/test.sh
+
+      - name: Package Firefox extension
+        run: bash scripts/package-firefox.sh
+
+      - name: Upload unsigned artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: videodefaults-unsigned-${{ github.sha }}
+          path: dist/*.zip
+          retention-days: 30

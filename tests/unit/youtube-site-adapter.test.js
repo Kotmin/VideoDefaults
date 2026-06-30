@@ -1,0 +1,124 @@
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import {
+  isYouTubeWatchPage,
+  getVideoContextId,
+  findVideoElement,
+  createYouTubeSiteAdapter,
+} from '../../src/site-adapters/youtube/youtube-site-adapter.js';
+
+function makeEventTarget() {
+  const listeners = new Map();
+  return {
+    addEventListener(type, fn) {
+      if (!listeners.has(type)) listeners.set(type, []);
+      listeners.get(type).push(fn);
+    },
+    removeEventListener(type, fn) {
+      if (listeners.has(type))
+        listeners.set(type, listeners.get(type).filter(f => f !== fn));
+    },
+    emit(type) {
+      (listeners.get(type) ?? []).forEach(fn => fn());
+    },
+  };
+}
+
+describe('isYouTubeWatchPage', () => {
+  it('returns true for www.youtube.com/watch with query param', () => {
+    assert.equal(isYouTubeWatchPage('https://www.youtube.com/watch?v=abc'), true);
+  });
+
+  it('returns true for youtube.com/watch without query param', () => {
+    assert.equal(isYouTubeWatchPage('https://youtube.com/watch'), true);
+  });
+
+  it('returns false for youtube.com root path', () => {
+    assert.equal(isYouTubeWatchPage('https://www.youtube.com/'), false);
+  });
+
+  it('returns false for non-youtube domain with /watch path', () => {
+    assert.equal(isYouTubeWatchPage('https://www.google.com/watch'), false);
+  });
+
+  it('returns false for youtube.com with extra path segments after /watch', () => {
+    assert.equal(isYouTubeWatchPage('https://www.youtube.com/watch/extra'), false);
+  });
+
+  it('returns false for malformed URL', () => {
+    assert.equal(isYouTubeWatchPage('not-a-url'), false);
+  });
+
+  it('returns true for mobile subdomain m.youtube.com/watch', () => {
+    assert.equal(isYouTubeWatchPage('https://m.youtube.com/watch?v=abc'), true);
+  });
+});
+
+describe('getVideoContextId', () => {
+  it('returns v param value when present', () => {
+    assert.equal(getVideoContextId('https://www.youtube.com/watch?v=abc123'), 'abc123');
+  });
+
+  it('returns pathname when v param is absent', () => {
+    assert.equal(getVideoContextId('https://www.youtube.com/shorts/xyz'), '/shorts/xyz');
+  });
+
+  it('returns raw url string when URL is malformed', () => {
+    assert.equal(getVideoContextId('not-a-url'), 'not-a-url');
+  });
+});
+
+describe('findVideoElement', () => {
+  it('returns element when querySelector finds one', () => {
+    const el = {};
+    const doc = { querySelector: () => el };
+    assert.equal(findVideoElement(doc), el);
+  });
+
+  it('returns null when querySelector finds nothing', () => {
+    const doc = { querySelector: () => null };
+    assert.equal(findVideoElement(doc), null);
+  });
+});
+
+describe('createYouTubeSiteAdapter', () => {
+  it('calls onNavigate callback when yt-navigate-finish fires', () => {
+    const doc = makeEventTarget();
+    const adapter = createYouTubeSiteAdapter(doc, {});
+    let called = 0;
+    adapter.onNavigate(() => called++);
+    doc.emit('yt-navigate-finish');
+    assert.equal(called, 1);
+  });
+
+  it('calls all registered onNavigate callbacks', () => {
+    const doc = makeEventTarget();
+    const adapter = createYouTubeSiteAdapter(doc, {});
+    let a = 0, b = 0;
+    adapter.onNavigate(() => a++);
+    adapter.onNavigate(() => b++);
+    doc.emit('yt-navigate-finish');
+    assert.equal(a, 1);
+    assert.equal(b, 1);
+  });
+
+  it('does not call callbacks after destroy()', () => {
+    const doc = makeEventTarget();
+    const adapter = createYouTubeSiteAdapter(doc, {});
+    let called = 0;
+    adapter.onNavigate(() => called++);
+    adapter.destroy();
+    doc.emit('yt-navigate-finish');
+    assert.equal(called, 0);
+  });
+
+  it('destroy() can be called multiple times without error', () => {
+    const doc = makeEventTarget();
+    const adapter = createYouTubeSiteAdapter(doc, {});
+    adapter.onNavigate(() => {});
+    assert.doesNotThrow(() => {
+      adapter.destroy();
+      adapter.destroy();
+    });
+  });
+});

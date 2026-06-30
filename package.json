@@ -1,0 +1,17 @@
+{
+  "name": "videodefaults",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Firefox WebExtension dev tooling — shipped extension has zero runtime dependencies",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "bash scripts/test.sh",
+    "check": "bash scripts/check.sh"
+  },
+  "devDependencies": {
+    "@dietrichgebert/ponytail": "4.8.4",
+    "@playwright/mcp": "0.0.77"
+  }
+}

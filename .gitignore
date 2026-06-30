@@ -1,0 +1,14 @@
+node_modules/
+dist/
+*.zip
+__pycache__/
+*.pyc
+.idea/
+.vscode/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+.playwright-mcp/
+*.log
+npm-debug.log*

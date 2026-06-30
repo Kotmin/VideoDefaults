@@ -12,3 +12,4 @@ Thumbs.db
 .playwright-mcp/
 *.log
 npm-debug.log*
+apps/firefox-extension/lib

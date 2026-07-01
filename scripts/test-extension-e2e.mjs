@@ -156,23 +156,27 @@ async function navigate(rdp, currentCon, url) {
   return newCon;
 }
 
-async function dismissConsent(rdp, con) {
+const VIDEO_SEL = `'video.html5-main-video,video'`;
+
+async function refreshActor(rdp, con) {
   try {
-    await rdp.evaluate(con,
-      `(()=>{const b=document.querySelector('button[aria-label*="Accept"],button[aria-label*="Agree"],form[action*="consent"] button');if(b)b.click();return!!b;})()`
+    const t = await rdp.waitFor(
+      m => m.type === 'target-available-form' && m.target?.consoleActor, 300
     );
-    await sleep(2000);
-  } catch {}
+    return t.target.consoleActor;
+  } catch {
+    return con;
+  }
 }
 
 async function waitForVideo(rdp, con, maxMs = 28000) {
   const deadline = Date.now() + maxMs;
   while (Date.now() < deadline) {
     const rs = await rdp.evaluate(con,
-      `document.querySelector('video')?.readyState??-1`).catch(() => -1);
+      `document.querySelector(${VIDEO_SEL})?.readyState??-1`).catch(() => -1);
     if (rs >= 1) {
       const rate = await rdp.evaluate(con,
-        `document.querySelector('video')?.playbackRate??null`).catch(() => null);
+        `document.querySelector(${VIDEO_SEL})?.playbackRate??null`).catch(() => null);
       return rate;
     }
     await sleep(1500);
@@ -181,7 +185,12 @@ async function waitForVideo(rdp, con, maxMs = 28000) {
 }
 
 async function getRate(rdp, con) {
-  return rdp.evaluate(con, `document.querySelector('video')?.playbackRate??null`);
+  return rdp.evaluate(con, `document.querySelector(${VIDEO_SEL})?.playbackRate??null`)
+    .catch(async () => {
+      const fresh = await refreshActor(rdp, con);
+      return rdp.evaluate(fresh, `document.querySelector(${VIDEO_SEL})?.playbackRate??null`)
+        .catch(() => null);
+    });
 }
 
 async function main() {
@@ -208,15 +217,13 @@ async function main() {
   try {
     con = await navigate(rdp, con, YT_A);
     await sleep(5000);
-    await dismissConsent(rdp, con);
-    // Dispatch yt-navigate-finish to trigger extension's onNavigate handler in case
-    // YouTube fired the event before the content script's listener was registered.
     const rateAtDetect = await waitForVideo(rdp, con);
     if (rateAtDetect === null) { log('TC-01', false, 'video element never appeared'); }
     else {
+      con = await refreshActor(rdp, con);
       await sleep(3000);
+      con = await refreshActor(rdp, con);
       const rate = await getRate(rdp, con);
-      process.stderr.write(`    after 3s: playbackRate=${rate}\n`);
       log('TC-01', rate === 2.0, `playbackRate = ${rate}`);
     }
   } catch (e) { log('TC-01', false, e.message.slice(0, 80)); }
@@ -226,13 +233,13 @@ async function main() {
   try {
     con = await navigate(rdp, con, YT_B);
     await sleep(5000);
-    await dismissConsent(rdp, con);
     const rateAtDetect = await waitForVideo(rdp, con);
     if (rateAtDetect === null) { log('TC-07', false, 'video never appeared'); }
     else {
+      con = await refreshActor(rdp, con);
       await sleep(3000);
+      con = await refreshActor(rdp, con);
       const rate = await getRate(rdp, con);
-      process.stderr.write(`    after 3s: playbackRate=${rate}\n`);
       log('TC-07', rate === 2.0, `playbackRate = ${rate}`);
     }
   } catch (e) { log('TC-07', false, e.message.slice(0, 80)); }
@@ -242,7 +249,7 @@ async function main() {
   try {
     con = await navigate(rdp, con, YT_HOME);
     await sleep(3000);
-    await dismissConsent(rdp, con);
+    con = await refreshActor(rdp, con);
     const err = await rdp.evaluate(con,
       `(window.__vdCrash===undefined)?'no-crash':'crashed'`).catch(() => 'eval-failed');
     log('TC-09', err === 'no-crash' || err === 'eval-failed',

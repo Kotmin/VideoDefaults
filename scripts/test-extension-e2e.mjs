@@ -87,7 +87,18 @@ class FirefoxRDP {
     const res = await this.waitFor(
       m => m.resultID === ack.resultID && m.result !== undefined, 10000
     );
-    return res.result;
+    return FirefoxRDP.#unwrap(res.result);
+  }
+
+  static #unwrap(grip) {
+    if (grip === null || typeof grip !== 'object') return grip;
+    if (grip.type === 'undefined') return undefined;
+    if (grip.type === 'null')      return null;
+    if (grip.type === 'NaN')       return NaN;
+    if (grip.type === 'Infinity')  return Infinity;
+    if (grip.type === '-Infinity') return -Infinity;
+    if ('value' in grip)           return grip.value;
+    return grip;
   }
 
   close() { this.#sock?.destroy(); }
@@ -171,17 +182,31 @@ async function refreshActor(rdp, con) {
 
 async function waitForVideo(rdp, con, maxMs = 28000) {
   const deadline = Date.now() + maxMs;
+  let actor = con;
+  let poll = 0;
   while (Date.now() < deadline) {
-    const rs = await rdp.evaluate(con,
-      `document.querySelector(${VIDEO_SEL})?.readyState??-1`).catch(() => -1);
+    const rs = await rdp.evaluate(actor,
+      `document.querySelector(${VIDEO_SEL})?.readyState??-1`).catch(async e => {
+        const fresh = await refreshActor(rdp, actor);
+        if (fresh !== actor) {
+          process.stderr.write(`    poll${poll} actor-refresh (${e.message.slice(0,25)})\n`);
+          actor = fresh;
+        }
+        return -99;
+      });
+    if (poll === 0) {
+      const url = await rdp.evaluate(actor, 'location.href').catch(() => 'ERR');
+      process.stderr.write(`    poll0 url=${String(url).slice(0,70)} rs=${rs}\n`);
+    }
+    poll++;
     if (rs >= 1) {
-      const rate = await rdp.evaluate(con,
+      const rate = await rdp.evaluate(actor,
         `document.querySelector(${VIDEO_SEL})?.playbackRate??null`).catch(() => null);
-      return rate;
+      return { rate, actor };
     }
     await sleep(1500);
   }
-  return null;
+  return { rate: null, actor };
 }
 
 async function getRate(rdp, con) {
@@ -217,13 +242,14 @@ async function main() {
   try {
     con = await navigate(rdp, con, YT_A);
     await sleep(5000);
-    const rateAtDetect = await waitForVideo(rdp, con);
+    const { rate: rateAtDetect, actor: con01 } = await waitForVideo(rdp, con);
+    con = con01;
     if (rateAtDetect === null) { log('TC-01', false, 'video element never appeared'); }
     else {
-      con = await refreshActor(rdp, con);
       await sleep(3000);
       con = await refreshActor(rdp, con);
       const rate = await getRate(rdp, con);
+      process.stderr.write(`    rate=${rate}\n`);
       log('TC-01', rate === 2.0, `playbackRate = ${rate}`);
     }
   } catch (e) { log('TC-01', false, e.message.slice(0, 80)); }
@@ -233,13 +259,14 @@ async function main() {
   try {
     con = await navigate(rdp, con, YT_B);
     await sleep(5000);
-    const rateAtDetect = await waitForVideo(rdp, con);
-    if (rateAtDetect === null) { log('TC-07', false, 'video never appeared'); }
+    const { rate: rateAtDetect07, actor: con07 } = await waitForVideo(rdp, con);
+    con = con07;
+    if (rateAtDetect07 === null) { log('TC-07', false, 'video never appeared'); }
     else {
-      con = await refreshActor(rdp, con);
       await sleep(3000);
       con = await refreshActor(rdp, con);
       const rate = await getRate(rdp, con);
+      process.stderr.write(`    rate=${rate}\n`);
       log('TC-07', rate === 2.0, `playbackRate = ${rate}`);
     }
   } catch (e) { log('TC-07', false, e.message.slice(0, 80)); }

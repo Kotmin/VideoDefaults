@@ -148,19 +148,23 @@ async function initRDP(port) {
   return { rdp, consoleActor: targetR.target.consoleActor };
 }
 
+// Accept only top-level frame targets. Firefox sets isTopLevel=true on the main frame;
+// iframes have isTopLevel=false. If the field is absent (older Firefox), we accept any
+// target but log the ambiguity. This prevents sub-frame actors from poisoning navigation.
+const isTopLevelTarget = t =>
+  t.type === 'target-available-form'
+  && t.target?.consoleActor
+  && t.target?.isTopLevel !== false;
+
 async function navigate(rdp, currentCon, url) {
-  // Flush stale sub-frame target events left by previous navigation before triggering a new one.
-  // YouTube emits 3-4 iframe targets ~6-7s after nav; they linger in the inbox and would be
-  // mistaken for the fresh top-level target of the next navigation if not flushed here.
   try { while (true) await rdp.waitFor(m => m.type === 'target-available-form', 50); } catch {}
 
   await rdp.evaluate(currentCon, `void(window.location.href=${JSON.stringify(url)})`).catch(() => {});
 
   let newCon = currentCon;
   try {
-    const t = await rdp.waitFor(
-      m => m.type === 'target-available-form' && m.target?.consoleActor, 12000
-    );
+    const t = await rdp.waitFor(m => isTopLevelTarget(m), 12000);
+    process.stderr.write(`    nav-target isTop=${t.target.isTopLevel} url=${(t.target.url||'').slice(0,55)}\n`);
     newCon = t.target.consoleActor;
   } catch {}
 
@@ -171,9 +175,8 @@ const VIDEO_SEL = `'video.html5-main-video,video'`;
 
 async function refreshActor(rdp, con) {
   try {
-    const t = await rdp.waitFor(
-      m => m.type === 'target-available-form' && m.target?.consoleActor, 300
-    );
+    const t = await rdp.waitFor(m => isTopLevelTarget(m), 500);
+    process.stderr.write(`    refresh isTop=${t.target.isTopLevel} url=${(t.target.url||'').slice(0,55)}\n`);
     return t.target.consoleActor;
   } catch {
     return con;
@@ -182,40 +185,27 @@ async function refreshActor(rdp, con) {
 
 async function waitForVideo(rdp, con, maxMs = 28000) {
   const deadline = Date.now() + maxMs;
-  let actor = con;
   let poll = 0;
   while (Date.now() < deadline) {
-    const rs = await rdp.evaluate(actor,
-      `document.querySelector(${VIDEO_SEL})?.readyState??-1`).catch(async e => {
-        const fresh = await refreshActor(rdp, actor);
-        if (fresh !== actor) {
-          process.stderr.write(`    poll${poll} actor-refresh (${e.message.slice(0,25)})\n`);
-          actor = fresh;
-        }
-        return -99;
-      });
+    const rs = await rdp.evaluate(con,
+      `document.querySelector(${VIDEO_SEL})?.readyState??-1`).catch(() => -1);
     if (poll === 0) {
-      const url = await rdp.evaluate(actor, 'location.href').catch(() => 'ERR');
+      const url = await rdp.evaluate(con, 'location.href').catch(() => 'ERR');
       process.stderr.write(`    poll0 url=${String(url).slice(0,70)} rs=${rs}\n`);
     }
     poll++;
     if (rs >= 1) {
-      const rate = await rdp.evaluate(actor,
+      return rdp.evaluate(con,
         `document.querySelector(${VIDEO_SEL})?.playbackRate??null`).catch(() => null);
-      return { rate, actor };
     }
     await sleep(1500);
   }
-  return { rate: null, actor };
+  return null;
 }
 
 async function getRate(rdp, con) {
   return rdp.evaluate(con, `document.querySelector(${VIDEO_SEL})?.playbackRate??null`)
-    .catch(async () => {
-      const fresh = await refreshActor(rdp, con);
-      return rdp.evaluate(fresh, `document.querySelector(${VIDEO_SEL})?.playbackRate??null`)
-        .catch(() => null);
-    });
+    .catch(() => null);
 }
 
 async function main() {
@@ -242,8 +232,7 @@ async function main() {
   try {
     con = await navigate(rdp, con, YT_A);
     await sleep(5000);
-    const { rate: rateAtDetect, actor: con01 } = await waitForVideo(rdp, con);
-    con = con01;
+    const rateAtDetect = await waitForVideo(rdp, con);
     if (rateAtDetect === null) { log('TC-01', false, 'video element never appeared'); }
     else {
       await sleep(3000);
@@ -259,8 +248,7 @@ async function main() {
   try {
     con = await navigate(rdp, con, YT_B);
     await sleep(5000);
-    const { rate: rateAtDetect07, actor: con07 } = await waitForVideo(rdp, con);
-    con = con07;
+    const rateAtDetect07 = await waitForVideo(rdp, con);
     if (rateAtDetect07 === null) { log('TC-07', false, 'video never appeared'); }
     else {
       await sleep(3000);

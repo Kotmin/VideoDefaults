@@ -148,13 +148,12 @@ async function initRDP(port) {
   return { rdp, consoleActor: targetR.target.consoleActor };
 }
 
-// Accept only top-level frame targets. Firefox sets isTopLevel=true on the main frame;
-// iframes have isTopLevel=false. If the field is absent (older Firefox), we accept any
-// target but log the ambiguity. This prevents sub-frame actors from poisoning navigation.
-const isTopLevelTarget = t =>
-  t.type === 'target-available-form'
-  && t.target?.consoleActor
-  && t.target?.isTopLevel !== false;
+// target.url IS populated in Firefox FDP; isTopLevel is not present in this build.
+// Filter by URL to reject sub-frames, about:blank, and auth redirects.
+const ytTarget = (m, urlPrefix = 'https://www.youtube.com') =>
+  m.type === 'target-available-form'
+  && m.target?.consoleActor
+  && (m.target.url || '').startsWith(urlPrefix);
 
 async function navigate(rdp, currentCon, url) {
   try { while (true) await rdp.waitFor(m => m.type === 'target-available-form', 50); } catch {}
@@ -163,8 +162,13 @@ async function navigate(rdp, currentCon, url) {
 
   let newCon = currentCon;
   try {
-    const t = await rdp.waitFor(m => isTopLevelTarget(m), 12000);
-    process.stderr.write(`    nav-target isTop=${t.target.isTopLevel} url=${(t.target.url||'').slice(0,55)}\n`);
+    // Wait for a target whose URL exactly matches the destination.
+    const t = await rdp.waitFor(
+      m => m.type === 'target-available-form' && m.target?.consoleActor
+        && m.target?.url === url,
+      12000
+    );
+    process.stderr.write(`    nav-ok url=${(t.target.url||'').slice(0,60)}\n`);
     newCon = t.target.consoleActor;
   } catch {}
 
@@ -174,9 +178,13 @@ async function navigate(rdp, currentCon, url) {
 const VIDEO_SEL = `'video.html5-main-video,video'`;
 
 async function refreshActor(rdp, con) {
+  // Pick up the newest YouTube watch-page actor (windowGlobal replacement).
+  // Rejects: about:blank, sub-frames with CDN URLs, Google sign-in redirects.
   try {
-    const t = await rdp.waitFor(m => isTopLevelTarget(m), 500);
-    process.stderr.write(`    refresh isTop=${t.target.isTopLevel} url=${(t.target.url||'').slice(0,55)}\n`);
+    const t = await rdp.waitFor(
+      m => ytTarget(m, 'https://www.youtube.com/watch'), 1000
+    );
+    process.stderr.write(`    refresh-ok url=${(t.target.url||'').slice(0,60)}\n`);
     return t.target.consoleActor;
   } catch {
     return con;

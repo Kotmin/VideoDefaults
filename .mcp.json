@@ -3,6 +3,10 @@
     "playwright": {
       "command": "./node_modules/.bin/playwright-mcp",
       "args": ["--browser", "firefox"]
+    },
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp@1.1.0"]
     }
   }
 }

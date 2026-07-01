@@ -4,6 +4,7 @@ export function createPlayerAdapter(videoElement) {
       return videoElement.playbackRate;
     },
     setSpeed(speed) {
+      videoElement.defaultPlaybackRate = speed;
       videoElement.playbackRate = speed;
     },
     onRateChange(handler) {

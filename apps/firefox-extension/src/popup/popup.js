@@ -7,6 +7,7 @@ const storage = createStorageAdapter(browser);
 const statusEl = document.getElementById('status');
 const errorEl = document.getElementById('error');
 const inputEl = document.getElementById('speed-input');
+const autoApplyEl = document.getElementById('auto-apply-checkbox');
 
 async function sendToContent(msg) {
   const tabs = await browser.tabs.query({ active: true, currentWindow: true });
@@ -67,4 +68,15 @@ for (const preset of PRESETS) {
   presetsEl.appendChild(btn);
 }
 
+autoApplyEl.addEventListener('change', async () => {
+  const settings = applyDefaults(await storage.getSettings());
+  await storage.saveSettings({ ...settings, youtubeEnabled: autoApplyEl.checked });
+});
+
+async function loadAutoApplyState() {
+  const settings = applyDefaults(await storage.getSettings());
+  autoApplyEl.checked = settings.youtubeEnabled;
+}
+
+loadAutoApplyState();
 refresh();

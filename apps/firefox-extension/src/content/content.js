@@ -48,7 +48,7 @@
         state = markManualOverride(state);
       });
 
-      if (settings && !isManualOverride(state)) {
+      if (settings && settings.youtubeEnabled && !isManualOverride(state)) {
         applySpeed(settings.defaultSpeed);
       }
     }, 300);

@@ -81,22 +81,40 @@ describe('findVideoElement', () => {
   });
 });
 
+function makeWindow(href) {
+  return { location: { href } };
+}
+
 describe('createYouTubeSiteAdapter', () => {
-  it('calls onNavigate callback when yt-navigate-finish fires', () => {
+  it('calls onNavigate callback when video id changes', () => {
     const doc = makeEventTarget();
-    const adapter = createYouTubeSiteAdapter(doc, {});
+    const win = makeWindow('https://www.youtube.com/watch?v=abc');
+    const adapter = createYouTubeSiteAdapter(doc, win);
     let called = 0;
     adapter.onNavigate(() => called++);
+    win.location.href = 'https://www.youtube.com/watch?v=xyz';
     doc.emit('yt-navigate-finish');
     assert.equal(called, 1);
   });
 
+  it('does not call onNavigate callback when yt-navigate-finish fires but video id is unchanged', () => {
+    const doc = makeEventTarget();
+    const win = makeWindow('https://www.youtube.com/watch?v=abc');
+    const adapter = createYouTubeSiteAdapter(doc, win);
+    let called = 0;
+    adapter.onNavigate(() => called++);
+    doc.emit('yt-navigate-finish');
+    assert.equal(called, 0);
+  });
+
   it('calls all registered onNavigate callbacks', () => {
     const doc = makeEventTarget();
-    const adapter = createYouTubeSiteAdapter(doc, {});
+    const win = makeWindow('https://www.youtube.com/watch?v=abc');
+    const adapter = createYouTubeSiteAdapter(doc, win);
     let a = 0, b = 0;
     adapter.onNavigate(() => a++);
     adapter.onNavigate(() => b++);
+    win.location.href = 'https://www.youtube.com/watch?v=xyz';
     doc.emit('yt-navigate-finish');
     assert.equal(a, 1);
     assert.equal(b, 1);
@@ -104,17 +122,20 @@ describe('createYouTubeSiteAdapter', () => {
 
   it('does not call callbacks after destroy()', () => {
     const doc = makeEventTarget();
-    const adapter = createYouTubeSiteAdapter(doc, {});
+    const win = makeWindow('https://www.youtube.com/watch?v=abc');
+    const adapter = createYouTubeSiteAdapter(doc, win);
     let called = 0;
     adapter.onNavigate(() => called++);
     adapter.destroy();
+    win.location.href = 'https://www.youtube.com/watch?v=xyz';
     doc.emit('yt-navigate-finish');
     assert.equal(called, 0);
   });
 
   it('destroy() can be called multiple times without error', () => {
     const doc = makeEventTarget();
-    const adapter = createYouTubeSiteAdapter(doc, {});
+    const win = makeWindow('https://www.youtube.com/watch?v=abc');
+    const adapter = createYouTubeSiteAdapter(doc, win);
     adapter.onNavigate(() => {});
     assert.doesNotThrow(() => {
       adapter.destroy();

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { spawn }              from 'child_process';
+import { spawn, spawnSync }   from 'child_process';
 import { mkdirSync, cpSync, rmSync } from 'fs';
 import { join, dirname }      from 'path';
 import { fileURLToPath }      from 'url';
@@ -105,6 +105,13 @@ class FirefoxRDP {
 }
 
 async function startWebExt() {
+  // apps/firefox-extension/lib is a gitignored symlink to ../../src; Firefox's
+  // addon sandbox refuses to follow symlinks pointing outside the extension
+  // directory, and fs.cpSync's dereference:true does not resolve directory
+  // symlinks either. Materialize it as real files before copying.
+  const sync = spawnSync('bash', [join(REPO, 'scripts', 'sync-extension-lib.sh')], { stdio: 'inherit' });
+  if (sync.status !== 0) throw new Error('sync-extension-lib.sh failed');
+
   rmSync(EXT_RESOLVED, { recursive: true, force: true });
   cpSync(EXT, EXT_RESOLVED, { recursive: true, dereference: true });
 

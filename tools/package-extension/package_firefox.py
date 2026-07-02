@@ -9,7 +9,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 EXTENSION_ROOT = REPO_ROOT / 'apps' / 'firefox-extension'
 DIST_DIR = REPO_ROOT / 'dist'
 
-ALLOWED_DIRS = {'src', 'assets'}
+ALLOWED_DIRS = {'src', 'assets', 'lib'}
 ALLOWED_ROOT_FILES = {'manifest.json'}
 
 FORBIDDEN_SUFFIXES = {'.map', '.swp', '.swo', '.pyc'}

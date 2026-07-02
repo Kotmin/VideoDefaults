@@ -4,6 +4,12 @@ export function createPlayerAdapter(videoElement) {
       return videoElement.playbackRate;
     },
     setSpeed(speed) {
+      const moviePlayer = typeof videoElement.closest === 'function'
+        ? videoElement.closest('#movie_player')
+        : null;
+      if (moviePlayer && typeof moviePlayer.setPlaybackRate === 'function') {
+        moviePlayer.setPlaybackRate(speed);
+      }
       videoElement.defaultPlaybackRate = speed;
       videoElement.playbackRate = speed;
     },

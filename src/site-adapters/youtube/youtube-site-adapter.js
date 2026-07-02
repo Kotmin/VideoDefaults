@@ -25,7 +25,13 @@ export function createYouTubeSiteAdapter(document, window) {
 
   return {
     onNavigate(callback) {
-      const handler = () => callback();
+      let lastId = getVideoContextId(window.location.href);
+      const handler = () => {
+        const id = getVideoContextId(window.location.href);
+        if (id === lastId) return;
+        lastId = id;
+        callback();
+      };
       handlers.set(callback, handler);
       document.addEventListener('yt-navigate-finish', handler);
     },

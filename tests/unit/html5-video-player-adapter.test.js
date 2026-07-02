@@ -52,6 +52,41 @@ describe('createPlayerAdapter.setSpeed', () => {
   });
 });
 
+describe('createPlayerAdapter.setSpeed movie_player sync', () => {
+  it('calls moviePlayer.setPlaybackRate when closest() finds a movie_player', () => {
+    const moviePlayer = { setPlaybackRate(rate) { this.lastRate = rate; } };
+    const el = makeVideoEl({ playbackRate: 1.0, readyState: 4 });
+    el.closest = (selector) => (selector === '#movie_player' ? moviePlayer : null);
+    const adapter = createPlayerAdapter(el);
+    adapter.setSpeed(1.75);
+    assert.equal(moviePlayer.lastRate, 1.75);
+    assert.equal(el.playbackRate, 1.75);
+  });
+
+  it('still sets videoElement.playbackRate when closest() returns null', () => {
+    const el = makeVideoEl({ playbackRate: 1.0, readyState: 4 });
+    el.closest = () => null;
+    const adapter = createPlayerAdapter(el);
+    adapter.setSpeed(1.5);
+    assert.equal(el.playbackRate, 1.5);
+  });
+
+  it('still sets videoElement.playbackRate when closest() is not a function', () => {
+    const el = makeVideoEl({ playbackRate: 1.0, readyState: 4 });
+    const adapter = createPlayerAdapter(el);
+    adapter.setSpeed(1.5);
+    assert.equal(el.playbackRate, 1.5);
+  });
+
+  it('does not throw when moviePlayer lacks setPlaybackRate', () => {
+    const el = makeVideoEl({ playbackRate: 1.0, readyState: 4 });
+    el.closest = () => ({});
+    const adapter = createPlayerAdapter(el);
+    assert.doesNotThrow(() => adapter.setSpeed(1.5));
+    assert.equal(el.playbackRate, 1.5);
+  });
+});
+
 describe('createPlayerAdapter.onRateChange', () => {
   it('handler is called when ratechange fires on element', () => {
     const el = makeVideoEl();

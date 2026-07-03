@@ -3,22 +3,94 @@ name: Release Main
 on:
   push:
     branches: [main]
-  release:
-    types: [published]
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
-# Not active in MVP. See docs/release/versioning.md for the planned release path.
-# Future steps: full CI → AMO signing → artifact upload → GitHub release.
+# Publishes VideoDefaults: check -> test -> package -> changelog -> AMO sign -> GitHub release.
+# See docs/release/amo-developer-setup.md for one-time AMO credential setup and
+# docs/release/amo-release-checklist.md for the full manual release process this
+# pipeline partially automates.
 # Requires secrets: AMO_ISSUER, AMO_SECRET (set in repo settings, never in code).
 # This workflow must not run on untrusted PR contexts with privileged secrets.
 
+concurrency:
+  group: release-main
+  cancel-in-progress: false
+
 jobs:
-  placeholder:
-    name: Release pipeline (not yet active)
+  release:
+    name: Check / Test / Package / Sign / Release
     runs-on: ubuntu-latest
-    if: false
     steps:
-      - run: echo "placeholder — implement release pipeline before enabling"
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dev dependencies
+        run: npm ci
+
+      - name: Scan for secrets
+        uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Syntax check and manifest validation
+        run: bash scripts/check.sh
+
+      - name: Unit tests
+        run: bash scripts/test.sh
+
+      - name: Package Firefox extension
+        run: bash scripts/package-firefox.sh
+
+      - name: Conventional Changelog
+        id: changelog
+        uses: TriPSs/conventional-changelog-action@v5
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          output-file: "false"
+          skip-commit: "true"
+          git-push: "false"
+
+      - name: Sign with AMO
+        if: ${{ steps.changelog.outputs.skipped == 'false' }}
+        run: |
+          npx web-ext sign \
+            --api-key="$AMO_ISSUER" \
+            --api-secret="$AMO_SECRET" \
+            --source-dir apps/firefox-extension \
+            --artifacts-dir dist \
+            --channel listed
+        env:
+          AMO_ISSUER: ${{ secrets.AMO_ISSUER }}
+          AMO_SECRET: ${{ secrets.AMO_SECRET }}
+
+      - name: Upload release artifacts
+        if: ${{ steps.changelog.outputs.skipped == 'false' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: videodefaults-${{ steps.changelog.outputs.tag }}
+          path: |
+            dist/*.zip
+            dist/*.xpi
+          retention-days: 90
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        if: ${{ steps.changelog.outputs.skipped == 'false' }}
+        with:
+          tag_name: ${{ steps.changelog.outputs.tag }}
+          name: ${{ steps.changelog.outputs.tag }}
+          body: ${{ steps.changelog.outputs.clean_changelog }}
+          files: |
+            dist/*.zip
+            dist/*.xpi

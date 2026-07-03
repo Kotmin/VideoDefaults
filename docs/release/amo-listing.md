@@ -55,3 +55,8 @@ No other permissions are requested. The extension does not use `tabs`, `activeTa
 ## Support Contact
 
 GitHub Issues: https://github.com/Kotmin/VideoDefaults/issues
+
+## Legal
+
+Terms of Use: `docs/compliance/terms-of-use.md`
+Privacy Policy: `docs/compliance/privacy.md`

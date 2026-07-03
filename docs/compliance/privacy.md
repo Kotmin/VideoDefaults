@@ -41,3 +41,5 @@ Any future version that introduces network requests, analytics, or new data coll
 ## Contact
 
 Questions or concerns: https://github.com/Kotmin/VideoDefaults/issues
+
+See also `docs/compliance/terms-of-use.md` for the terms governing your use of the extension.

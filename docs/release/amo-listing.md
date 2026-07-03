@@ -60,3 +60,17 @@ GitHub Issues: https://github.com/Kotmin/VideoDefaults/issues
 
 Terms of Use: `docs/compliance/terms-of-use.md`
 Privacy Policy: `docs/compliance/privacy.md`
+
+## Notes to Reviewer (paste into AMO submission)
+
+No account or login is required to test this extension — it works entirely on public YouTube watch pages with no sign-in.
+
+**Version notes:** see `CHANGELOG.md` for the version being submitted; paste that release's entries here.
+
+**How to test:**
+1. Install the extension and open any `youtube.com/watch` video.
+2. Confirm the configured default speed (2× by default) is applied automatically.
+3. Open the toolbar popup — confirm it shows the current speed and preset buttons (1×, 1.5×, 2×) work.
+4. Manually change speed via YouTube's own controls — confirm the extension stops overriding for that video (manual override), and resumes defaults on the next video.
+
+Full manual test matrix: `docs/release/firefox-manual-test-checklist.md`.

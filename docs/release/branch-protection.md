@@ -42,6 +42,10 @@ Never use `git merge dev` (creates a merge commit). Never force-push `main` exce
 
 `.github/workflows/` is protected by `CODEOWNERS`. Changes require a review from `@Kotmin` before merging. This prevents untrusted contributors from gaining CI-level access via workflow modifications.
 
+## Release Pipeline
+
+`Release Main` (`.github/workflows/release-main.yml`) runs the full publish pipeline on every push to `main`: secret scan, check, test, package, changelog, AMO signing, GitHub Release. It requires `AMO_ISSUER` and `AMO_SECRET` repository secrets — see `docs/release/amo-developer-setup.md` for how to generate and add them. Without those secrets configured, the signing/release steps of the workflow will fail (the check/test/package/secret-scan steps still run and provide useful signal on their own).
+
 ## Emergency Recovery
 
 If `main` is in a broken state and a force-push is absolutely required:

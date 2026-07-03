@@ -1,0 +1,10 @@
+title = "VideoDefaults gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "YouTube page snapshots captured for reverse-engineering research — contain YouTube's own public client-side keys (INNERTUBE_API_KEY, reCAPTCHA site key), not project secrets"
+paths = [
+  '''docs/probes/.*''',
+]

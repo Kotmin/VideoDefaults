@@ -6,13 +6,13 @@ VideoDefaults
 
 ## Summary (max 250 chars)
 
-Applies your preferred video playback speed to YouTube automatically. Respects manual changes. No accounts, no data collection, no ads — just your settings, stored locally.
+Sets your preferred YouTube playback speed automatically, on every video. Respects manual changes. No accounts, no data collection, no ads — just your setting, stored locally.
 
 ## Description
 
-VideoDefaults remembers how you like to watch videos.
+Tired of resetting your playback speed on every single YouTube video? VideoDefaults fixes that.
 
-The extension applies a configurable default playback speed to every new YouTube video you open, so you never have to change it manually again. The default is 2×, but you can set any value between 0.25× and 4×.
+It applies a configurable default playback speed to every new YouTube video you open, so you never have to change it manually again. Only speeds YouTube's own player actually supports are offered — anywhere from 0.25× to 4× — so there's nothing to configure that wouldn't already work by hand.
 
 **Features:**
 - Sets your preferred playback speed automatically on YouTube watch pages

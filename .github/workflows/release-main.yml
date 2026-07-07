@@ -52,17 +52,38 @@ jobs:
       - name: Package Firefox extension
         run: bash scripts/package-firefox.sh
 
-      - name: Conventional Changelog
+      - name: Read release version
+        id: version
+        run: |
+          VERSION="$(jq -r '.version' apps/firefox-extension/manifest.json)"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Check if this version was already released
+        id: release_check
+        run: |
+          if git ls-remote --tags origin "refs/tags/${{ steps.version.outputs.tag }}" | grep -q .; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Extract changelog section
         id: changelog
-        uses: TriPSs/conventional-changelog-action@v5
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          output-file: "false"
-          skip-commit: "true"
-          git-push: "false"
+        if: ${{ steps.release_check.outputs.exists == 'false' }}
+        run: |
+          {
+            echo "notes<<CHANGELOG_EOF"
+            awk -v ver="${{ steps.version.outputs.version }}" '
+              $0 ~ "^## \\[" ver "\\]" { flag=1; next }
+              /^## \[/ { flag=0 }
+              flag { print }
+            ' CHANGELOG.md
+            echo "CHANGELOG_EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Sign with AMO
-        if: ${{ steps.changelog.outputs.skipped == 'false' }}
+        if: ${{ steps.release_check.outputs.exists == 'false' }}
         run: |
           npx web-ext sign \
             --api-key="$AMO_ISSUER" \
@@ -75,10 +96,10 @@ jobs:
           AMO_SECRET: ${{ secrets.AMO_SECRET }}
 
       - name: Upload release artifacts
-        if: ${{ steps.changelog.outputs.skipped == 'false' }}
+        if: ${{ steps.release_check.outputs.exists == 'false' }}
         uses: actions/upload-artifact@v7
         with:
-          name: videodefaults-${{ steps.changelog.outputs.tag }}
+          name: videodefaults-${{ steps.version.outputs.tag }}
           path: |
             dist/*.zip
             dist/*.xpi
@@ -86,11 +107,11 @@ jobs:
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
-        if: ${{ steps.changelog.outputs.skipped == 'false' }}
+        if: ${{ steps.release_check.outputs.exists == 'false' }}
         with:
-          tag_name: ${{ steps.changelog.outputs.tag }}
-          name: ${{ steps.changelog.outputs.tag }}
-          body: ${{ steps.changelog.outputs.clean_changelog }}
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ steps.version.outputs.tag }}
+          body: ${{ steps.changelog.outputs.notes }}
           files: |
             dist/*.zip
             dist/*.xpi

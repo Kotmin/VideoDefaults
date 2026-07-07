@@ -7,6 +7,13 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.0.3] - 2026-07-07
+
+### Fixed
+- Popup's "Auto-apply default speed on video load" checkbox had no effect on already-open tabs — settings were cached once at page load and never refreshed. Content script now listens for `storage.onChanged` and picks up the toggle live.
+- Manual speed overrides could get silently reverted after a short delay: an internal state reset ran unconditionally right before the guard that was supposed to check it, making the guard permanently dead. Overrides now persist until a genuine new-video navigation.
+- Fixed a related listener leak where repeated video re-inits could stack duplicate `ratechange` listeners on the same video element.
+
 ## [0.0.2] - 2026-07-03
 
 ### Fixed

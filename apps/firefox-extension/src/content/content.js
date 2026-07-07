@@ -15,6 +15,7 @@
     let settings = null;
     let state = createState();
     let player = null;
+    let unsubscribeRateChange = null;
     let tokenCounter = 0;
 
     function nextToken() {
@@ -37,10 +38,11 @@
       const el = findVideoElement(document);
       if (!el) return;
 
-      player = createPlayerAdapter(el);
-      state = clearOverride(state);
+      if (unsubscribeRateChange) unsubscribeRateChange();
 
-      player.onRateChange(() => {
+      player = createPlayerAdapter(el);
+
+      unsubscribeRateChange = player.onRateChange(() => {
         if (state.extensionToken !== null) {
           state = clearExtensionToken(state);
           return;
@@ -79,6 +81,11 @@
 
       await loadSettings().catch(() => { settings = applyDefaults({}); });
       tryInitVideo();
+
+      browser.storage.onChanged.addListener((changes, area) => {
+        if (area !== 'local' || !changes.videodefaults_settings) return;
+        settings = applyDefaults(changes.videodefaults_settings.newValue ?? {});
+      });
 
       const siteAdapter = createYouTubeSiteAdapter(document, window);
       siteAdapter.onNavigate(() => {

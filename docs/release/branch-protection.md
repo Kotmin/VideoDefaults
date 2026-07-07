@@ -46,6 +46,10 @@ Never use `git merge dev` (creates a merge commit). Never force-push `main` exce
 
 `Release Main` (`.github/workflows/release-main.yml`) runs the full publish pipeline on every push to `main`: secret scan, check, test, package, changelog, AMO signing, GitHub Release. It requires `AMO_ISSUER` and `AMO_SECRET` repository secrets — see `docs/release/amo-developer-setup.md` for how to generate and add them. Without those secrets configured, the signing/release steps of the workflow will fail (the check/test/package/secret-scan steps still run and provide useful signal on their own).
 
+## Secret Scanning
+
+`Secret Scan` (`.github/workflows/secret-scan.yml`) runs `gitleaks` on every push (all branches), every pull request, and on demand — independent of the release pipeline. This closes the gap where commits pushed directly to `dev` would otherwise go unscanned until a `main` release. `Release Main` keeps its own secret-scan step as a final gate before signing/release.
+
 ## Emergency Recovery
 
 If `main` is in a broken state and a force-push is absolutely required:

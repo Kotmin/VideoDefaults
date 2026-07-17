@@ -48,6 +48,14 @@ bindings live behind the prefix chord, so collisions only matter for the
 prefix itself. Anything else you want reserved?
 **Default:** the list above, stored in the configurable definitions file.
 
+## Q8 — keymap configuration UI
+
+The keymap is configurable via storage (documented in
+`docs/specs/keyboard-shortcuts.md`), but there is no editing UI. Options: a
+dedicated options page (`options_ui`), extra controls in the popup, or leave as
+storage-only for power users.
+**Default:** storage-only for now; options page when you confirm you want it.
+
 ## Q7 — scope of the shortcut feature
 
 Ship prefix-navigation in Firefox first and port to Chrome/Edge after it

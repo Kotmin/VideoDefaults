@@ -6,7 +6,7 @@
       createState, markExtensionWrite, markManualOverride,
       clearOverride, isManualOverride, clearExtensionToken,
     } = await import(browser.runtime.getURL('lib/core/playback-state.js'));
-    const { MESSAGE_TYPES } = await import(browser.runtime.getURL('lib/core/validation.js'));
+    const { MESSAGE_TYPES, validateMessage } = await import(browser.runtime.getURL('lib/core/validation.js'));
     const { debounce } = await import(browser.runtime.getURL('lib/core/debounce.js'));
     const { isYouTubeWatchPage, findVideoElement, createYouTubeSiteAdapter } =
       await import(browser.runtime.getURL('lib/site-adapters/youtube/youtube-site-adapter.js'));
@@ -29,8 +29,8 @@
 
     function applySpeed(speed) {
       if (!player) return;
-      const token = nextToken();
-      state = markExtensionWrite(state, token);
+      if (player.getSpeed() === speed) return;
+      state = markExtensionWrite(state, nextToken());
       player.setSpeed(speed);
     }
 
@@ -55,7 +55,10 @@
       }
     }, 300);
 
-    browser.runtime.onMessage.addListener((msg) => {
+    browser.runtime.onMessage.addListener((raw) => {
+      const msg = validateMessage(raw);
+      if (!msg.valid) return Promise.resolve({ ok: false, error: msg.error });
+
       if (msg.type === MESSAGE_TYPES.GET_PLAYBACK_STATE) {
         return Promise.resolve({
           ok: true,
@@ -66,14 +69,14 @@
       }
 
       if (msg.type === MESSAGE_TYPES.APPLY_SPEED_TO_ACTIVE_VIDEO) {
-        const v = validateSpeed(msg.payload?.speed);
+        const v = validateSpeed(msg.payload.speed);
         if (!v.valid) return Promise.resolve({ ok: false, error: v.error });
         state = clearOverride(state);
         applySpeed(v.value);
         return Promise.resolve({ ok: true });
       }
 
-      return Promise.resolve({ ok: false, error: 'unknown message' });
+      return Promise.resolve({ ok: false, error: 'unsupported message type' });
     });
 
     async function init() {
@@ -89,6 +92,10 @@
 
       const siteAdapter = createYouTubeSiteAdapter(document, window);
       siteAdapter.onNavigate(() => {
+        if (unsubscribeRateChange) {
+          unsubscribeRateChange();
+          unsubscribeRateChange = null;
+        }
         player = null;
         state = createState();
         if (isYouTubeWatchPage(location.href)) tryInitVideo();

@@ -84,7 +84,10 @@ drop `web_accessible_resources` entirely. Tracked in the multi-browser spec.
 
 ### S4 — pin third-party GitHub Actions to commit SHAs (medium, supply chain)
 
-- [ ] `release-main.yml`, `secret-scan.yml`, `ci-dev.yml`
+- [x] Fixed: `gitleaks-action` and `action-gh-release` pinned to commit SHAs in
+  `release-main.yml` and `secret-scan.yml`; Dependabot (`github-actions`
+  ecosystem, weekly) added to keep pins fresh. First-party `actions/*` stay on
+  major tags.
 
 Tag refs (`gitleaks/gitleaks-action@v3`, `softprops/action-gh-release@v2`) are
 mutable — a compromised tag runs attacker code in a workflow that holds

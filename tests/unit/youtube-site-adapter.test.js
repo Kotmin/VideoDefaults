@@ -49,6 +49,14 @@ describe('isYouTubeWatchPage', () => {
     assert.equal(isYouTubeWatchPage('not-a-url'), false);
   });
 
+  it('returns false for lookalike domain ending in youtube.com', () => {
+    assert.equal(isYouTubeWatchPage('https://evilyoutube.com/watch?v=abc'), false);
+  });
+
+  it('returns false for youtube.com as a subdomain of another domain', () => {
+    assert.equal(isYouTubeWatchPage('https://youtube.com.evil.example/watch'), false);
+  });
+
   it('returns true for mobile subdomain m.youtube.com/watch', () => {
     assert.equal(isYouTubeWatchPage('https://m.youtube.com/watch?v=abc'), true);
   });

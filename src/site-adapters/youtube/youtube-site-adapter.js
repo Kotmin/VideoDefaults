@@ -1,7 +1,9 @@
 export function isYouTubeWatchPage(url) {
   try {
     const parsed = new URL(url);
-    return parsed.hostname.endsWith('youtube.com') && parsed.pathname === '/watch';
+    const host = parsed.hostname;
+    return (host === 'youtube.com' || host.endsWith('.youtube.com'))
+      && parsed.pathname === '/watch';
   } catch {
     return false;
   }

@@ -48,11 +48,31 @@ async function main() {
   if (rate !== 2 || defaultRate !== 2) {
     throw new Error(`expected playbackRate/defaultPlaybackRate 2/2, got ${rate}/${defaultRate}`);
   }
+  await page.keyboard.press('Control+a');
+  await page.keyboard.press('o');
+  await page.waitForSelector('[data-videodefaults-overlay] span', { timeout: 5000 });
+  const labelCount = await page.evaluate(
+    () => document.querySelectorAll('[data-videodefaults-overlay] span').length,
+  );
+  if (labelCount < 3) throw new Error(`expected >=3 jump labels, got ${labelCount}`);
+  await page.keyboard.press('Escape');
+  const overlayGone = await page.evaluate(
+    () => document.querySelector('[data-videodefaults-overlay]') === null,
+  );
+  if (!overlayGone) throw new Error('overlay did not close on Escape');
+
+  await page.keyboard.press('Control+a');
+  await page.keyboard.press('y');
+  await page.waitForURL('https://www.youtube.com/', { timeout: 5000 });
+
   const vdErrors = errors.filter((e) => e.includes('[VideoDefaults]'));
   if (vdErrors.length > 0) {
     throw new Error(`content script errors: ${vdErrors.join('; ')}`);
   }
-  console.log(JSON.stringify({ ok: true, playbackRate: rate, defaultPlaybackRate: defaultRate }));
+  console.log(JSON.stringify({
+    ok: true, playbackRate: rate, defaultPlaybackRate: defaultRate,
+    jumpLabels: labelCount, wentHome: true,
+  }));
 }
 
 main()

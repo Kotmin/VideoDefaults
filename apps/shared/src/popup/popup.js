@@ -3,6 +3,7 @@ import { applyDefaults } from '../../lib/core/settings.js';
 import { MESSAGE_TYPES } from '../../lib/core/validation.js';
 import { createStorageAdapter } from '../../lib/browser-adapters/firefox/firefox-storage-adapter.js';
 
+const browser = globalThis.browser ?? globalThis.chrome;
 const storage = createStorageAdapter(browser);
 const statusEl = document.getElementById('status');
 const errorEl = document.getElementById('error');

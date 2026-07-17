@@ -1,5 +1,6 @@
 (async () => {
   try {
+    const browser = globalThis.browser ?? globalThis.chrome;
     const { applyDefaults } = await import(browser.runtime.getURL('lib/core/settings.js'));
     const { validateSpeed } = await import(browser.runtime.getURL('lib/core/speed.js'));
     const {

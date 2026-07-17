@@ -3,14 +3,20 @@
   "name": "VideoDefaults",
   "version": "0.0.3",
   "description": "Preserves default video playback settings, starting with YouTube playback speed.",
-  "permissions": ["storage"],
+  "permissions": [
+    "storage"
+  ],
   "host_permissions": [
     "https://www.youtube.com/*"
   ],
   "content_scripts": [
     {
-      "matches": ["https://www.youtube.com/*"],
-      "js": ["src/content/content.js"],
+      "matches": [
+        "https://www.youtube.com/*"
+      ],
+      "js": [
+        "src/content/content.js"
+      ],
       "run_at": "document_idle"
     }
   ],
@@ -19,9 +25,12 @@
       "resources": [
         "lib/core/*.js",
         "lib/site-adapters/youtube/*.js",
-        "lib/player-adapters/*.js"
+        "lib/player-adapters/*.js",
+        "lib/ui/*.js"
       ],
-      "matches": ["https://www.youtube.com/*"]
+      "matches": [
+        "https://www.youtube.com/*"
+      ]
     }
   ],
   "action": {

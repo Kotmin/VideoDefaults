@@ -12,6 +12,11 @@
     const { isYouTubeWatchPage, findVideoElement, createYouTubeSiteAdapter } =
       await import(browser.runtime.getURL('lib/site-adapters/youtube/youtube-site-adapter.js'));
     const { createPlayerAdapter } = await import(browser.runtime.getURL('lib/player-adapters/html5-video-player-adapter.js'));
+    const {
+      COMMANDS, createShortcutController, generateLabels, filterLabelPairs,
+    } = await import(browser.runtime.getURL('lib/core/keyboard-shortcuts.js'));
+    const { collectJumpTargets, createJumpOverlay } =
+      await import(browser.runtime.getURL('lib/ui/jump-overlay.js'));
 
     let settings = null;
     let state = createState();
@@ -80,11 +85,89 @@
       return Promise.resolve({ ok: false, error: 'unsupported message type' });
     });
 
-    async function init() {
-      if (!isYouTubeWatchPage(location.href)) return;
+    function goHome() {
+      const logo = document.querySelector('a#logo, ytd-topbar-logo-renderer a');
+      if (logo) logo.click();
+      else location.assign(settings.keymap.homeUrl);
+    }
 
+    function activateTarget(el) {
+      if (typeof el.focus === 'function') el.focus();
+      el.click();
+    }
+
+    function setupKeyboard() {
+      const overlay = createJumpOverlay(document);
+      const controller = createShortcutController();
+      let pendingTimer = null;
+      let labelState = null;
+
+      function closeOverlay() {
+        overlay.close();
+        labelState = null;
+      }
+
+      function openOverlay() {
+        const targets = collectJumpTargets(document, window);
+        if (targets.length === 0) return;
+        const labels = generateLabels(targets.length);
+        const pairs = targets.map((t, i) => ({ label: labels[i], element: t.element, rect: t.rect }));
+        overlay.open(pairs);
+        labelState = { pairs, typed: '' };
+      }
+
+      function handleLabelKey(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.key === 'Escape') { closeOverlay(); return; }
+        if (e.key === 'Backspace') {
+          labelState.typed = labelState.typed.slice(0, -1);
+          overlay.showMatches(filterLabelPairs(labelState.pairs, labelState.typed).remaining.map((p) => p.label));
+          return;
+        }
+        if (!/^[a-z]$/i.test(e.key)) return;
+        const typed = labelState.typed + e.key;
+        const { remaining, exact } = filterLabelPairs(labelState.pairs, typed);
+        if (exact) {
+          const el = exact.element;
+          closeOverlay();
+          activateTarget(el);
+          return;
+        }
+        if (remaining.length === 0) { closeOverlay(); return; }
+        labelState.typed = typed;
+        overlay.showMatches(remaining.map((p) => p.label));
+      }
+
+      window.addEventListener('keydown', (e) => {
+        if (labelState) {
+          if (!['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) handleLabelKey(e);
+          return;
+        }
+
+        const t = e.target;
+        const isEditable = t != null && (t.isContentEditable === true
+          || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName));
+
+        const result = controller.handleKey({
+          key: e.key, ctrlKey: e.ctrlKey, metaKey: e.metaKey,
+          altKey: e.altKey, shiftKey: e.shiftKey, isEditable,
+        }, settings.keymap);
+
+        if (result.consume) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        clearTimeout(pendingTimer);
+        if (result.pending) pendingTimer = setTimeout(() => controller.cancel(), 2000);
+        if (result.command === COMMANDS.GO_HOME) goHome();
+        if (result.command === COMMANDS.SHOW_JUMP_LABELS) openOverlay();
+      }, true);
+    }
+
+    async function init() {
       await loadSettings().catch(() => { settings = applyDefaults({}); });
-      tryInitVideo();
+      setupKeyboard();
 
       browser.storage.onChanged.addListener((changes, area) => {
         if (area !== 'local' || !changes.videodefaults_settings) return;
@@ -101,6 +184,8 @@
         state = createState();
         if (isYouTubeWatchPage(location.href)) tryInitVideo();
       });
+
+      if (isYouTubeWatchPage(location.href)) tryInitVideo();
     }
 
     init();

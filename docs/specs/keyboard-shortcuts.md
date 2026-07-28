@@ -67,4 +67,6 @@ No options UI yet — edit via storage or wait for the options page
 - Unit: `tests/unit/keyboard-shortcuts.test.js` (state machine, keymap
   sanitizing, labels), `tests/unit/jump-overlay.test.js` (target collection).
 - E2E: `scripts/test-chrome-smoke.mjs` presses the real chords in Chromium and
-  asserts overlay render, Escape close, and home navigation.
+  asserts overlay render, Escape close, and home navigation. `scripts/test-extension-e2e.mjs`
+  (TC-15, TC-16) dispatches the same chords over the Firefox RDP console actor
+  and asserts overlay render/close and home navigation in real Firefox.

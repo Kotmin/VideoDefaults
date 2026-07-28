@@ -1,9 +1,16 @@
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
+
+function resolveCachedBrowserBin(prefix, relBinParts) {
+  const base = join(process.env.HOME, '.cache', 'ms-playwright');
+  const dir = readdirSync(base).filter((d) => d.startsWith(prefix)).sort().pop();
+  if (!dir) throw new Error(`no cached ${prefix}* Playwright build found under ${base}`);
+  return join(base, dir, ...relBinParts);
+}
 
 const REPO = dirname(dirname(fileURLToPath(import.meta.url)));
 const EXT = join(REPO, 'apps', 'chrome-extension');
@@ -19,7 +26,7 @@ async function main() {
   context = await chromium.launchPersistentContext(profileDir, {
     headless: false,
     executablePath: process.env.VD_CHROMIUM_BIN
-      || join(process.env.HOME, '.cache', 'ms-playwright', 'chromium-1228', 'chrome-linux64', 'chrome'),
+      || resolveCachedBrowserBin('chromium-', ['chrome-linux64', 'chrome']),
     args: [
       `--disable-extensions-except=${EXT}`,
       `--load-extension=${EXT}`,

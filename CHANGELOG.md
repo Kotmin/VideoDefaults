@@ -7,6 +7,17 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-07-29
+
+### Added
+- Chrome and Edge extension editions alongside Firefox (source of truth), sharing source via `apps/shared` (ADR-0008).
+- Tmux-style prefix-key navigation: `Ctrl+A` chord prefix with a configurable keymap, a jump-label overlay for clicking visible links/buttons by two-char label, and a go-home shortcut.
+- Compatibility watcher tool and scheduled CI workflow that classifies open issues by severity and flags active breakage.
+
+### Changed
+- CI now pins third-party GitHub Actions to commit SHAs and scans every branch for secrets, not just `main`.
+- Release pipeline packages all three editions (Firefox, Chrome, Edge) instead of Firefox only.
+
 ## [0.0.3] - 2026-07-07
 
 ### Fixed

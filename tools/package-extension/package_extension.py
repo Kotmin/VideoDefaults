@@ -6,8 +6,9 @@ import zipfile
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-EXTENSION_ROOT = REPO_ROOT / 'apps' / 'firefox-extension'
 DIST_DIR = REPO_ROOT / 'dist'
+
+KNOWN_APPS = {'firefox-extension', 'chrome-extension', 'edge-extension'}
 
 ALLOWED_DIRS = {'src', 'assets', 'lib'}
 ALLOWED_ROOT_FILES = {'manifest.json'}
@@ -70,11 +71,17 @@ def verify_no_forbidden(files):
 
 
 def main():
-    if not EXTENSION_ROOT.is_dir():
-        print(f'error: extension root not found: {EXTENSION_ROOT}', file=sys.stderr)
+    app = sys.argv[1] if len(sys.argv) > 1 else 'firefox-extension'
+    if app not in KNOWN_APPS:
+        print(f'error: unknown app {app!r}, expected one of {sorted(KNOWN_APPS)}', file=sys.stderr)
         sys.exit(1)
 
-    manifest_path = EXTENSION_ROOT / 'manifest.json'
+    extension_root = REPO_ROOT / 'apps' / app
+    if not extension_root.is_dir():
+        print(f'error: extension root not found: {extension_root}', file=sys.stderr)
+        sys.exit(1)
+
+    manifest_path = extension_root / 'manifest.json'
     if not manifest_path.is_file():
         print(f'error: manifest.json not found', file=sys.stderr)
         sys.exit(1)
@@ -82,7 +89,7 @@ def main():
     with open(manifest_path) as f:
         version = json.load(f).get('version', '0.0.0')
 
-    files = collect_files(EXTENSION_ROOT)
+    files = collect_files(extension_root)
     if not files:
         print('error: no files found to package', file=sys.stderr)
         sys.exit(1)
@@ -90,7 +97,8 @@ def main():
     verify_no_forbidden(files)
 
     DIST_DIR.mkdir(exist_ok=True)
-    output = DIST_DIR / f'videodefaults-{version}.zip'
+    suffix = '' if app == 'firefox-extension' else '-' + app.removesuffix('-extension')
+    output = DIST_DIR / f'videodefaults{suffix}-{version}.zip'
 
     with zipfile.ZipFile(str(output), 'w', zipfile.ZIP_DEFLATED) as zf:
         for rel, abs_path in files:

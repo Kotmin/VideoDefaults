@@ -30,8 +30,16 @@ jobs:
       - name: Unit tests
         run: bash scripts/test.sh
 
-      - name: Package Firefox extension
-        run: bash scripts/package-firefox.sh
+      - name: Lint extension (addons-linter)
+        run: |
+          bash scripts/sync-extension-lib.sh
+          npx web-ext lint --source-dir apps/firefox-extension --no-input
+
+      - name: Package extensions (firefox, chrome, edge)
+        run: |
+          for app in firefox-extension chrome-extension edge-extension; do
+            bash scripts/package-extension.sh "$app"
+          done
 
       - name: Upload unsigned artifact
         uses: actions/upload-artifact@v7

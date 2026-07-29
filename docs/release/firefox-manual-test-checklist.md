@@ -101,6 +101,18 @@
 - [ ] Run through TC-01 through TC-10.
 - [ ] Confirm zero uncaught errors in the extension console.
 
+### TC-15: Jump-Label Overlay (Prefix Chord)
+
+- [ ] On a YouTube watch page, press `Ctrl+A` then `o`.
+- [ ] Confirm an overlay with two-char labels appears over visible links/buttons.
+- [ ] Press `Escape`; confirm the overlay closes and no label remains.
+- [ ] Type a shown label; confirm the corresponding element is focused and clicked.
+
+### TC-16: Go-Home Chord (Prefix Chord)
+
+- [ ] On a YouTube watch page, press `Ctrl+A` then `y`.
+- [ ] Confirm navigation to the YouTube home page (`https://www.youtube.com/`).
+
 ## Pass Criteria
 
-All 14 test cases must pass with zero uncaught errors in the extension console before a release is promoted from `dev` to `main`.
+All 16 test cases must pass with zero uncaught errors in the extension console before a release is promoted from `dev` to `main`.

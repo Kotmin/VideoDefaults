@@ -1,4 +1,5 @@
 import { validateSpeed } from './speed.js';
+import { DEFAULT_KEYMAP, normalizeKeymap } from './keyboard-shortcuts.js';
 
 export const DEFAULT_SETTINGS = Object.freeze({
   schemaVersion: 1,
@@ -7,6 +8,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   youtubeEnabled: true,
   captionsMode: 'leave',
   volumeMode: 'leave',
+  keymap: DEFAULT_KEYMAP,
 });
 
 const VALID_CAPTIONS_MODES = Object.freeze(['leave']);
@@ -37,6 +39,7 @@ export function applyDefaults(partial) {
     youtubeEnabled: resolveYoutubeEnabled(src.youtubeEnabled),
     captionsMode: resolveCaptionsMode(src.captionsMode),
     volumeMode: resolveVolumeMode(src.volumeMode),
+    keymap: normalizeKeymap(src.keymap),
   };
 }
 

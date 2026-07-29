@@ -1,14 +1,22 @@
 #!/usr/bin/env node
 import { spawn, spawnSync }   from 'child_process';
-import { mkdirSync, cpSync, rmSync } from 'fs';
+import { mkdirSync, cpSync, rmSync, readdirSync } from 'fs';
 import { join, dirname }      from 'path';
 import { fileURLToPath }      from 'url';
 import net from 'net';
 
+function resolveCachedBrowserBin(prefix, relBinParts) {
+  const base = join(process.env.HOME, '.cache', 'ms-playwright');
+  const dir = readdirSync(base).filter((d) => d.startsWith(prefix)).sort().pop();
+  if (!dir) throw new Error(`no cached ${prefix}* Playwright build found under ${base}`);
+  return join(base, dir, ...relBinParts);
+}
+
 const __dir  = dirname(fileURLToPath(import.meta.url));
 const REPO   = join(__dir, '..');
 const EXT    = join(REPO, 'apps', 'firefox-extension');
-const FF_BIN = '/home/kotmin/.cache/ms-playwright/firefox-1533/firefox/firefox';
+const FF_BIN = process.env.VD_FIREFOX_BIN
+  || resolveCachedBrowserBin('firefox-', ['firefox', 'firefox']);
 const SHOTS  = join(REPO, 'dist', 'e2e-screenshots');
 // Resolved extension dir with symlinks dereferenced — Firefox addon sandbox
 // refuses to load files via symlinks that point outside the extension directory.
@@ -285,6 +293,52 @@ async function main() {
     log('TC-09', err === 'no-crash' || err === 'eval-failed',
       `extension state: ${err}`);
   } catch (e) { log('TC-09', false, e.message.slice(0, 80)); }
+
+  // TC-15: jump-label overlay (prefix chord Ctrl+A, o) opens labels; Escape closes it
+  process.stderr.write('\nTC-15: jump-label overlay via prefix chord\n');
+  try {
+    con = await navigate(rdp, con, YT_A);
+    await sleep(5000);
+    con = await refreshActor(rdp, con);
+    await waitForVideo(rdp, con);
+    await rdp.evaluate(con, `
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', ctrlKey: true, bubbles: true }));
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'o', bubbles: true }));
+    `);
+    await sleep(500);
+    const labelCount = await rdp.evaluate(con,
+      `document.querySelectorAll('[data-videodefaults-overlay] span').length`);
+    process.stderr.write(`    jump labels = ${labelCount}\n`);
+    if (labelCount > 0) {
+      await rdp.evaluate(con,
+        `window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`);
+      await sleep(300);
+      const overlayGone = await rdp.evaluate(con,
+        `document.querySelector('[data-videodefaults-overlay]') === null`);
+      log('TC-15', overlayGone, `labels=${labelCount}, closed-on-escape=${overlayGone}`);
+    } else {
+      log('TC-15', false, 'no jump labels rendered');
+    }
+  } catch (e) { log('TC-15', false, e.message.slice(0, 80)); }
+
+  // TC-16: go-home chord (prefix chord Ctrl+A, y) navigates to YouTube home
+  process.stderr.write('\nTC-16: go-home via prefix chord\n');
+  try {
+    await rdp.evaluate(con, `
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', ctrlKey: true, bubbles: true }));
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'y', bubbles: true }));
+    `);
+    await sleep(3000);
+    let homeHref = await rdp.evaluate(con, 'location.href').catch(() => null);
+    if (typeof homeHref !== 'string' || !homeHref.startsWith(YT_HOME)) {
+      try {
+        const t = await rdp.waitFor(m => ytTarget(m, YT_HOME), 5000);
+        con = t.target.consoleActor;
+        homeHref = t.target.url;
+      } catch { /* fall through with whatever homeHref currently is */ }
+    }
+    log('TC-16', typeof homeHref === 'string' && homeHref.startsWith(YT_HOME), `href=${homeHref}`);
+  } catch (e) { log('TC-16', false, e.message.slice(0, 80)); }
 
   // TC-12: no external network from extension (architecture check)
   log('TC-12', true, 'extension makes no external requests (content-script only, no fetch/XHR)');

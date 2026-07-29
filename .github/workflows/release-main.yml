@@ -39,7 +39,7 @@ jobs:
         run: npm ci
 
       - name: Scan for secrets
-        uses: gitleaks/gitleaks-action@v3
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -49,8 +49,16 @@ jobs:
       - name: Unit tests
         run: bash scripts/test.sh
 
-      - name: Package Firefox extension
-        run: bash scripts/package-firefox.sh
+      - name: Lint extension (addons-linter)
+        run: |
+          bash scripts/sync-extension-lib.sh
+          npx web-ext lint --source-dir apps/firefox-extension --no-input
+
+      - name: Package extensions (firefox, chrome, edge)
+        run: |
+          for app in firefox-extension chrome-extension edge-extension; do
+            bash scripts/package-extension.sh "$app"
+          done
 
       - name: Read release version
         id: version
@@ -106,7 +114,7 @@ jobs:
           retention-days: 90
 
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         if: ${{ steps.release_check.outputs.exists == 'false' }}
         with:
           tag_name: ${{ steps.version.outputs.tag }}

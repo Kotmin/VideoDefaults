@@ -9,14 +9,19 @@ echo "syntax ok"
 
 python3 - <<'PYEOF'
 import json, sys
-apps = ['firefox-extension', 'chrome-extension', 'edge-extension']
-required = ['manifest_version', 'name', 'version', 'permissions', 'content_scripts', 'action']
+
+SOURCE_OF_TRUTH = 'firefox-extension'
+APPS = ['firefox-extension', 'chrome-extension', 'edge-extension']
+REQUIRED = ['manifest_version', 'name', 'version', 'permissions', 'content_scripts', 'action']
+ALLOWED_DIVERGENT_FIELDS = {'browser_specific_settings', 'minimum_chrome_version'}
+
+manifests = {}
 versions = set()
-for app in apps:
+for app in APPS:
     path = f'apps/{app}/manifest.json'
     with open(path) as f:
         m = json.load(f)
-    missing = [k for k in required if k not in m]
+    missing = [k for k in REQUIRED if k not in m]
     if missing:
         print(f'{path} missing fields:', missing, file=sys.stderr); sys.exit(1)
     if m['manifest_version'] != 3:
@@ -24,7 +29,19 @@ for app in apps:
     if not m.get('host_permissions'):
         print(f'{path}: missing host_permissions', file=sys.stderr); sys.exit(1)
     versions.add(m['version'])
+    manifests[app] = m
 if len(versions) != 1:
     print('manifest versions out of sync:', sorted(versions), file=sys.stderr); sys.exit(1)
 print('manifests ok')
+
+baseline = manifests[SOURCE_OF_TRUTH]
+for app, m in manifests.items():
+    if app == SOURCE_OF_TRUTH:
+        continue
+    fields = (set(baseline) | set(m)) - ALLOWED_DIVERGENT_FIELDS
+    diverging = [k for k in sorted(fields) if baseline.get(k) != m.get(k)]
+    if diverging:
+        print(f'apps/{app}/manifest.json diverges from {SOURCE_OF_TRUTH} (source of truth) in: {diverging}', file=sys.stderr)
+        sys.exit(1)
+print('manifest parity ok (firefox is source of truth)')
 PYEOF

@@ -8,7 +8,7 @@ VideoDefaults uses a tmux-style prefix chord — press the prefix, then a comman
 | `Ctrl+A` then `o` | Open jump overlay (labels clickable elements) | Global |
 | `Ctrl+A` then `y` | Go home (click YouTube logo, or navigate to configured home URL) | Global |
 | `Ctrl+A` then `Esc` | Cancel pending prefix | Global |
-| `a`-`z` (typed label) | Filter/select a labelled target; exact match activates it | Jump overlay open |
+| Two-char label (e.g. `AA`) | Filter/select the labelled target; typing the full label activates it | Jump overlay open |
 | `Backspace` | Remove last typed label character | Jump overlay open |
 | `Esc` | Close jump overlay | Jump overlay open |
 

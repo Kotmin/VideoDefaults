@@ -9,16 +9,17 @@ while read -r local_ref local_sha remote_ref remote_sha; do
   [ "$local_sha" = "0000000000000000000000000000000000000000" ] && continue
 
   if [ "$remote_sha" = "0000000000000000000000000000000000000000" ]; then
-    range="$local_sha"
+    commits="$(git rev-list "$local_sha" --not --remotes 2>/dev/null || true)"
   else
-    range="$remote_sha..$local_sha"
+    commits="$(git rev-list "$remote_sha..$local_sha" 2>/dev/null || true)"
   fi
 
   while IFS= read -r sha; do
+    [ -n "$sha" ] || continue
     git log -1 --format='%B' "$sha" > "$tmpfile"
     if ! python3 "$VALIDATOR" "$tmpfile" 2>&1; then
       echo "pre-push: rejected at commit $sha" >&2
       exit 1
     fi
-  done < <(git log --format='%H' "$range" 2>/dev/null)
+  done <<< "$commits"
 done

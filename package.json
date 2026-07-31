@@ -13,7 +13,7 @@
   },
   "devDependencies": {
     "@dietrichgebert/ponytail": "4.8.4",
-    "@playwright/mcp": "0.0.77",
-    "web-ext": "10.4.0"
+    "@playwright/mcp": "0.0.78",
+    "web-ext": "10.5.0"
   }
 }

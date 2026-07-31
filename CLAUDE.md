@@ -2,6 +2,10 @@
 
 Test: `bash scripts/test.sh` | Check: `bash scripts/check.sh`
 
+## Docs
+
+When keybindings in source change, update `docs/keyboard-quickstart.md` in the same commit so it doesn't drift.
+
 Code: plain JS + JSDoc in `src/` and `apps/`; no TypeScript, no runtime deps shipped; no comments unless WHY is non-obvious
 
 Commits: conventional (`type(scope): desc`); types: feat fix docs test refactor chore ci build perf; atomic; no AI tool names

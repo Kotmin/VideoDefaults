@@ -28,12 +28,14 @@ jobs:
       - name: Run compatibility watcher
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FAIL_ON: ${{ github.event.inputs.fail_on || 'high' }}
+          SCOPE: ${{ github.event.inputs.scope || 'all' }}
         run: |
           python3 tools/compatibility-watch/compatibility_watch.py \
             --repo "$GITHUB_REPOSITORY" \
             --mode ci \
-            --fail-on "${{ github.event.inputs.fail_on || 'high' }}" \
-            --scope "${{ github.event.inputs.scope || 'all' }}" \
+            --fail-on "$FAIL_ON" \
+            --scope "$SCOPE" \
             --output-dir dist
 
       - name: Upload compatibility reports

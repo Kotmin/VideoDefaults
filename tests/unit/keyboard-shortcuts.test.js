@@ -4,11 +4,13 @@ import {
   COMMANDS,
   DEFAULT_KEYMAP,
   MAX_JUMP_TARGETS,
+  SPEED_SHORTCUTS,
   createShortcutController,
   eventMatchesPrefix,
   filterLabelPairs,
   generateLabels,
   normalizeKeymap,
+  normalizeSpeedShortcuts,
 } from '../../src/core/keyboard-shortcuts.js';
 
 function key(k, extra = {}) {
@@ -33,9 +35,9 @@ describe('normalizeKeymap', () => {
     assert.deepEqual(km.prefix, { key: 'a', ctrl: false, meta: true });
   });
 
-  it('drops chords with unknown commands and invalid keys', () => {
+  it('drops chords with unknown commands and invalid keys, keeping defaults for the rest', () => {
     const km = normalizeKeymap({ chords: { y: COMMANDS.GO_HOME, x: 'rm-rf', long: COMMANDS.GO_HOME } });
-    assert.deepEqual(km.chords, { y: COMMANDS.GO_HOME });
+    assert.deepEqual(km.chords, { ...DEFAULT_KEYMAP.chords });
   });
 
   it('falls back to default chords when all entries are invalid', () => {
@@ -43,11 +45,73 @@ describe('normalizeKeymap', () => {
     assert.deepEqual(km.chords, { ...DEFAULT_KEYMAP.chords });
   });
 
+  it('merges a stored partial override onto the defaults instead of replacing them', () => {
+    const km = normalizeKeymap({ chords: { o: COMMANDS.GO_HOME } });
+    assert.equal(km.chords.o, COMMANDS.GO_HOME);
+    assert.equal(km.chords.y, DEFAULT_KEYMAP.chords.y);
+    assert.equal(km.chords.v, DEFAULT_KEYMAP.chords.v);
+    assert.equal(km.chords.b, DEFAULT_KEYMAP.chords.b);
+    assert.equal(km.chords.n, DEFAULT_KEYMAP.chords.n);
+    assert.equal(km.chords.h, DEFAULT_KEYMAP.chords.h);
+  });
+
   it('rejects non-youtube and non-https home urls', () => {
     assert.equal(normalizeKeymap({ homeUrl: 'https://evil.example/' }).homeUrl, DEFAULT_KEYMAP.homeUrl);
     assert.equal(normalizeKeymap({ homeUrl: 'http://www.youtube.com/' }).homeUrl, DEFAULT_KEYMAP.homeUrl);
     assert.equal(normalizeKeymap({ homeUrl: 'javascript:alert(1)' }).homeUrl, DEFAULT_KEYMAP.homeUrl);
     assert.equal(normalizeKeymap({ homeUrl: 'https://music.youtube.com/' }).homeUrl, 'https://music.youtube.com/');
+  });
+
+  it('accepts the speed and auto-apply commands as chords', () => {
+    const km = normalizeKeymap({
+      chords: {
+        v: COMMANDS.SET_SPEED_1,
+        b: COMMANDS.SET_SPEED_2,
+        n: COMMANDS.SET_SPEED_3,
+        h: COMMANDS.TOGGLE_AUTO_APPLY,
+      },
+    });
+    assert.equal(km.chords.v, COMMANDS.SET_SPEED_1);
+    assert.equal(km.chords.b, COMMANDS.SET_SPEED_2);
+    assert.equal(km.chords.n, COMMANDS.SET_SPEED_3);
+    assert.equal(km.chords.h, COMMANDS.TOGGLE_AUTO_APPLY);
+  });
+});
+
+describe('DEFAULT_KEYMAP', () => {
+  it('chords v/b/n/h map to the speed and auto-apply commands from shortcuts.config.json', () => {
+    assert.equal(DEFAULT_KEYMAP.chords.v, COMMANDS.SET_SPEED_1);
+    assert.equal(DEFAULT_KEYMAP.chords.b, COMMANDS.SET_SPEED_2);
+    assert.equal(DEFAULT_KEYMAP.chords.n, COMMANDS.SET_SPEED_3);
+    assert.equal(DEFAULT_KEYMAP.chords.h, COMMANDS.TOGGLE_AUTO_APPLY);
+  });
+});
+
+describe('SPEED_SHORTCUTS', () => {
+  it('has the three expected default speeds', () => {
+    assert.deepEqual(SPEED_SHORTCUTS, {
+      [COMMANDS.SET_SPEED_1]: 1,
+      [COMMANDS.SET_SPEED_2]: 1.5,
+      [COMMANDS.SET_SPEED_3]: 2.0,
+    });
+  });
+});
+
+describe('normalizeSpeedShortcuts', () => {
+  it('falls back to defaults for garbage input', () => {
+    assert.deepEqual(normalizeSpeedShortcuts(null), SPEED_SHORTCUTS);
+    assert.deepEqual(normalizeSpeedShortcuts('nope'), SPEED_SHORTCUTS);
+  });
+
+  it('falls back per-command when an entry is out of range or non-numeric', () => {
+    const result = normalizeSpeedShortcuts({
+      [COMMANDS.SET_SPEED_1]: 99,
+      [COMMANDS.SET_SPEED_2]: 'fast',
+      [COMMANDS.SET_SPEED_3]: 1.75,
+    });
+    assert.equal(result[COMMANDS.SET_SPEED_1], SPEED_SHORTCUTS[COMMANDS.SET_SPEED_1]);
+    assert.equal(result[COMMANDS.SET_SPEED_2], SPEED_SHORTCUTS[COMMANDS.SET_SPEED_2]);
+    assert.equal(result[COMMANDS.SET_SPEED_3], 1.75);
   });
 });
 

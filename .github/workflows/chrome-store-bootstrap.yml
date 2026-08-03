@@ -1,0 +1,40 @@
+name: Chrome Store Bootstrap Zip
+
+# Temporary, manual-only: produces a Chrome-only unsigned zip for the
+# one-time manual first CWS listing (docs/release/cws-developer-setup.md
+# step 4). Delete this file once that listing exists — ongoing publishes
+# go through the CWS API v2, not this artifact.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: Package Chrome Zip
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dev dependencies
+        run: npm ci
+
+      - name: Package chrome-extension only
+        run: |
+          bash scripts/sync-extension-lib.sh
+          bash scripts/package-extension.sh chrome-extension
+
+      - name: Upload zip
+        uses: actions/upload-artifact@v7
+        with:
+          name: videodefaults-chrome-store-bootstrap
+          path: dist/videodefaults-chrome-*.zip
+          retention-days: 7

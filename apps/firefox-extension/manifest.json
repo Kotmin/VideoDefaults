@@ -24,6 +24,7 @@
     {
       "resources": [
         "lib/core/*.js",
+        "lib/core/*.json",
         "lib/site-adapters/youtube/*.js",
         "lib/player-adapters/*.js",
         "lib/ui/*.js"

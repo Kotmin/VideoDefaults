@@ -21,7 +21,7 @@ Full reference: [docs/keyboard-quickstart.md](docs/keyboard-quickstart.md).
 
 ### Customizing keybindings and speeds
 
-Edit `src/core/shortcuts.config.json` to change the prefix key, any chord binding, or the three preset speed values. Speed values must fall within the allowed range (`0.25`–`4.0`) — out-of-range or invalid entries are rejected and fall back to the default for that slot, so double-check your value is one you actually want applied before it's picked up. Details: [docs/specs/keyboard-shortcuts.md](docs/specs/keyboard-shortcuts.md).
+Edit `src/core/shortcuts.config.json` to change the prefix key, any chord binding, or the three preset speed values. Speed values must fall within the allowed range (`0.25`–`4.0`), but only use values YouTube itself will actually honor for your account — e.g. speeds above `2x` are a YouTube Premium feature, so a non-Premium account silently caps at `2x` regardless of what's configured here. Respect the platform's own limits when picking a value. Details: [docs/specs/keyboard-shortcuts.md](docs/specs/keyboard-shortcuts.md).
 
 ## Status
 

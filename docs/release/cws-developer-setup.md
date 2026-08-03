@@ -29,6 +29,7 @@ Done once, by hand, using the OAuth Playground:
 - `CWS_CLIENT_SECRET`
 - `CWS_REFRESH_TOKEN`
 - `CWS_EXTENSION_ID` (the store-assigned item id — only exists after step 4 below)
+- `CWS_PUBLISHER_ID` (your account/group publisher id from the [Developer Dashboard](https://chrome.google.com/webstore/devconsole/) account settings — required, not a wildcard; see `docs/release/cws-api-contract-findings.md`)
 
 ## 4. First-Ever Submission Needs the Web UI Once
 
@@ -41,13 +42,13 @@ Same constraint as AMO: the API only updates an *existing* store item, it cannot
 
 ## 5. What CI Automates After That
 
-With all four secrets set, `release-chrome.yml` runs this on every push to `main` that touches Chrome-relevant paths:
+With all five secrets set, `release-chrome.yml` runs this on every push to `main` that touches Chrome-relevant paths:
 
 1. `POST https://oauth2.googleapis.com/token` with `client_id`, `client_secret`, `refresh_token`, `grant_type=refresh_token` → short-lived access token (no npm dependency needed, plain HTTP).
-2. `POST https://chromewebstore.googleapis.com/v2/publishers/{publisher_id}/items/{CWS_EXTENSION_ID}:upload` with the zip.
-3. `POST .../items/{CWS_EXTENSION_ID}:publish` to submit the uploaded draft for review.
+2. `POST https://chromewebstore.googleapis.com/upload/v2/publishers/{CWS_PUBLISHER_ID}/items/{CWS_EXTENSION_ID}:upload` with the zip as the raw body, `X-Goog-Upload-Protocol: raw` and `X-Goog-Upload-File-Name` headers (note the `/upload/v2/` media path — not the `/v2/` metadata path used for `:publish`/`:fetchStatus`).
+3. `POST .../v2/publishers/{CWS_PUBLISHER_ID}/items/{CWS_EXTENSION_ID}:publish` with a JSON body `{"publishType":"DEFAULT_PUBLISH"}` to submit the uploaded draft for review.
 
-The workflow uses `-` as the `{publisher_id}` path segment (CWS accepts this as "infer from the authenticated account/item") since no separate publisher id secret exists — confirm this resolves correctly against the real account on the first live run.
+See `docs/release/cws-api-contract-findings.md` for the full verified contract and how the original `-`-as-publisher-id / metadata-endpoint assumptions were found to be wrong on the first live run.
 
 **It cannot force the review to complete** — same caveat as AMO: a green CI run means "submitted," not "live." Track status via `:fetchStatus` or the dashboard.
 

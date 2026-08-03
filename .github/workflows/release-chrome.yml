@@ -20,7 +20,8 @@ permissions:
 
 # Publishes the Chrome edition of VideoDefaults: check -> test -> package -> changelog -> CWS publish -> GitHub release.
 # See docs/release/cws-developer-setup.md for one-time Chrome Web Store credential setup.
-# Requires secrets: CWS_CLIENT_ID, CWS_CLIENT_SECRET, CWS_REFRESH_TOKEN, CWS_EXTENSION_ID
+# Requires secrets: CWS_CLIENT_ID, CWS_CLIENT_SECRET, CWS_REFRESH_TOKEN,
+# CWS_EXTENSION_ID, CWS_PUBLISHER_ID
 # (set in repo settings, never in code).
 # This workflow must not run on untrusted PR contexts with privileged secrets.
 
@@ -117,9 +118,10 @@ jobs:
         if: ${{ steps.release_check.outputs.exists == 'false' }}
         run: |
           HTTP_CODE="$(curl -s -o response.json -w '%{http_code}' -X POST \
-            "https://chromewebstore.googleapis.com/v2/publishers/-/items/${CWS_EXTENSION_ID}:upload" \
+            "https://chromewebstore.googleapis.com/upload/v2/publishers/${CWS_PUBLISHER_ID}/items/${CWS_EXTENSION_ID}:upload" \
             -H "Authorization: Bearer ${ACCESS_TOKEN}" \
-            -H "Content-Type: application/zip" \
+            -H "X-Goog-Upload-Protocol: raw" \
+            -H "X-Goog-Upload-File-Name: extension.zip" \
             --data-binary "@dist/videodefaults-chrome-${VERSION}.zip")"
           if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
             echo "upload failed (HTTP $HTTP_CODE):" >&2
@@ -128,6 +130,7 @@ jobs:
           fi
         env:
           ACCESS_TOKEN: ${{ steps.cws_token.outputs.access_token }}
+          CWS_PUBLISHER_ID: ${{ secrets.CWS_PUBLISHER_ID }}
           CWS_EXTENSION_ID: ${{ secrets.CWS_EXTENSION_ID }}
           VERSION: ${{ steps.version.outputs.version }}
 
@@ -135,8 +138,10 @@ jobs:
         if: ${{ steps.release_check.outputs.exists == 'false' }}
         run: |
           HTTP_CODE="$(curl -s -o response.json -w '%{http_code}' -X POST \
-            "https://chromewebstore.googleapis.com/v2/publishers/-/items/${CWS_EXTENSION_ID}:publish" \
-            -H "Authorization: Bearer ${ACCESS_TOKEN}")"
+            "https://chromewebstore.googleapis.com/v2/publishers/${CWS_PUBLISHER_ID}/items/${CWS_EXTENSION_ID}:publish" \
+            -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d '{"publishType":"DEFAULT_PUBLISH"}')"
           if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
             echo "publish failed (HTTP $HTTP_CODE):" >&2
             cat response.json >&2
@@ -144,6 +149,7 @@ jobs:
           fi
         env:
           ACCESS_TOKEN: ${{ steps.cws_token.outputs.access_token }}
+          CWS_PUBLISHER_ID: ${{ secrets.CWS_PUBLISHER_ID }}
           CWS_EXTENSION_ID: ${{ secrets.CWS_EXTENSION_ID }}
 
       - name: Upload release artifacts

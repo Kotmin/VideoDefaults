@@ -4,11 +4,13 @@ import {
   COMMANDS,
   DEFAULT_KEYMAP,
   MAX_JUMP_TARGETS,
+  SPEED_SHORTCUTS,
   createShortcutController,
   eventMatchesPrefix,
   filterLabelPairs,
   generateLabels,
   normalizeKeymap,
+  normalizeSpeedShortcuts,
 } from '../../src/core/keyboard-shortcuts.js';
 
 function key(k, extra = {}) {
@@ -48,6 +50,65 @@ describe('normalizeKeymap', () => {
     assert.equal(normalizeKeymap({ homeUrl: 'http://www.youtube.com/' }).homeUrl, DEFAULT_KEYMAP.homeUrl);
     assert.equal(normalizeKeymap({ homeUrl: 'javascript:alert(1)' }).homeUrl, DEFAULT_KEYMAP.homeUrl);
     assert.equal(normalizeKeymap({ homeUrl: 'https://music.youtube.com/' }).homeUrl, 'https://music.youtube.com/');
+  });
+
+  it('accepts the speed and auto-apply commands as chords', () => {
+    const km = normalizeKeymap({
+      chords: {
+        1: COMMANDS.SET_SPEED_1,
+        2: COMMANDS.SET_SPEED_2,
+        3: COMMANDS.SET_SPEED_CUSTOM_1,
+        4: COMMANDS.SET_SPEED_CUSTOM_2,
+        5: COMMANDS.TOGGLE_AUTO_APPLY,
+      },
+    });
+    assert.deepEqual(km.chords, {
+      1: COMMANDS.SET_SPEED_1,
+      2: COMMANDS.SET_SPEED_2,
+      3: COMMANDS.SET_SPEED_CUSTOM_1,
+      4: COMMANDS.SET_SPEED_CUSTOM_2,
+      5: COMMANDS.TOGGLE_AUTO_APPLY,
+    });
+  });
+});
+
+describe('DEFAULT_KEYMAP', () => {
+  it('chords 1-5 map to the speed and auto-apply commands from shortcuts.config.json', () => {
+    assert.equal(DEFAULT_KEYMAP.chords['1'], COMMANDS.SET_SPEED_1);
+    assert.equal(DEFAULT_KEYMAP.chords['2'], COMMANDS.SET_SPEED_2);
+    assert.equal(DEFAULT_KEYMAP.chords['3'], COMMANDS.SET_SPEED_CUSTOM_1);
+    assert.equal(DEFAULT_KEYMAP.chords['4'], COMMANDS.SET_SPEED_CUSTOM_2);
+    assert.equal(DEFAULT_KEYMAP.chords['5'], COMMANDS.TOGGLE_AUTO_APPLY);
+  });
+});
+
+describe('SPEED_SHORTCUTS', () => {
+  it('has the four expected default speeds', () => {
+    assert.deepEqual(SPEED_SHORTCUTS, {
+      [COMMANDS.SET_SPEED_1]: 1,
+      [COMMANDS.SET_SPEED_2]: 2,
+      [COMMANDS.SET_SPEED_CUSTOM_1]: 1.25,
+      [COMMANDS.SET_SPEED_CUSTOM_2]: 1.5,
+    });
+  });
+});
+
+describe('normalizeSpeedShortcuts', () => {
+  it('falls back to defaults for garbage input', () => {
+    assert.deepEqual(normalizeSpeedShortcuts(null), SPEED_SHORTCUTS);
+    assert.deepEqual(normalizeSpeedShortcuts('nope'), SPEED_SHORTCUTS);
+  });
+
+  it('falls back per-command when an entry is out of range or non-numeric', () => {
+    const result = normalizeSpeedShortcuts({
+      [COMMANDS.SET_SPEED_1]: 99,
+      [COMMANDS.SET_SPEED_2]: 'fast',
+      [COMMANDS.SET_SPEED_CUSTOM_1]: 1.75,
+    });
+    assert.equal(result[COMMANDS.SET_SPEED_1], SPEED_SHORTCUTS[COMMANDS.SET_SPEED_1]);
+    assert.equal(result[COMMANDS.SET_SPEED_2], SPEED_SHORTCUTS[COMMANDS.SET_SPEED_2]);
+    assert.equal(result[COMMANDS.SET_SPEED_CUSTOM_1], 1.75);
+    assert.equal(result[COMMANDS.SET_SPEED_CUSTOM_2], SPEED_SHORTCUTS[COMMANDS.SET_SPEED_CUSTOM_2]);
   });
 });
 

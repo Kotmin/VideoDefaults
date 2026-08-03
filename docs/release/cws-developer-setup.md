@@ -50,6 +50,8 @@ With all five secrets set, `release-chrome.yml` runs this on every push to `main
 
 See `docs/release/cws-api-contract-findings.md` for the full verified contract and how the original `-`-as-publisher-id / metadata-endpoint assumptions were found to be wrong on the first live run.
 
+> **Provenance note:** a background research agent was assigned to verify this contract but stalled (repeated idle notifications, no report delivered). The contract above was instead verified directly against Chrome's official REST reference plus the `fregante/chrome-webstore-upload` library source as a real-world cross-check, per this repo's debug-strategy rule (stop guessing after 2 failed live attempts, reassess the abstraction level rather than loop). A stalled subagent is a signal to verify directly, not a blocker.
+
 **It cannot force the review to complete** — same caveat as AMO: a green CI run means "submitted," not "live." Track status via `:fetchStatus` or the dashboard.
 
 ## Notes

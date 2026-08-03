@@ -3,17 +3,15 @@
   "chords": {
     "o": "show-jump-labels",
     "y": "go-home",
-    "1": "set-speed-1",
-    "2": "set-speed-2",
-    "3": "set-speed-custom-1",
-    "4": "set-speed-custom-2",
-    "5": "toggle-auto-apply"
+    "v": "set-speed-1",
+    "b": "set-speed-2",
+    "n": "set-speed-3",
+    "h": "toggle-auto-apply"
   },
   "homeUrl": "https://www.youtube.com/",
   "speeds": {
     "set-speed-1": 1,
-    "set-speed-2": 2,
-    "set-speed-custom-1": 1.25,
-    "set-speed-custom-2": 1.5
+    "set-speed-2": 1.5,
+    "set-speed-3": 2.0
   }
 }

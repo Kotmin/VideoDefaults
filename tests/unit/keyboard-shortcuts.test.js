@@ -35,14 +35,24 @@ describe('normalizeKeymap', () => {
     assert.deepEqual(km.prefix, { key: 'a', ctrl: false, meta: true });
   });
 
-  it('drops chords with unknown commands and invalid keys', () => {
+  it('drops chords with unknown commands and invalid keys, keeping defaults for the rest', () => {
     const km = normalizeKeymap({ chords: { y: COMMANDS.GO_HOME, x: 'rm-rf', long: COMMANDS.GO_HOME } });
-    assert.deepEqual(km.chords, { y: COMMANDS.GO_HOME });
+    assert.deepEqual(km.chords, { ...DEFAULT_KEYMAP.chords });
   });
 
   it('falls back to default chords when all entries are invalid', () => {
     const km = normalizeKeymap({ chords: { x: 'nope' } });
     assert.deepEqual(km.chords, { ...DEFAULT_KEYMAP.chords });
+  });
+
+  it('merges a stored partial override onto the defaults instead of replacing them', () => {
+    const km = normalizeKeymap({ chords: { o: COMMANDS.GO_HOME } });
+    assert.equal(km.chords.o, COMMANDS.GO_HOME);
+    assert.equal(km.chords.y, DEFAULT_KEYMAP.chords.y);
+    assert.equal(km.chords.v, DEFAULT_KEYMAP.chords.v);
+    assert.equal(km.chords.b, DEFAULT_KEYMAP.chords.b);
+    assert.equal(km.chords.n, DEFAULT_KEYMAP.chords.n);
+    assert.equal(km.chords.h, DEFAULT_KEYMAP.chords.h);
   });
 
   it('rejects non-youtube and non-https home urls', () => {
@@ -55,40 +65,34 @@ describe('normalizeKeymap', () => {
   it('accepts the speed and auto-apply commands as chords', () => {
     const km = normalizeKeymap({
       chords: {
-        1: COMMANDS.SET_SPEED_1,
-        2: COMMANDS.SET_SPEED_2,
-        3: COMMANDS.SET_SPEED_CUSTOM_1,
-        4: COMMANDS.SET_SPEED_CUSTOM_2,
-        5: COMMANDS.TOGGLE_AUTO_APPLY,
+        v: COMMANDS.SET_SPEED_1,
+        b: COMMANDS.SET_SPEED_2,
+        n: COMMANDS.SET_SPEED_3,
+        h: COMMANDS.TOGGLE_AUTO_APPLY,
       },
     });
-    assert.deepEqual(km.chords, {
-      1: COMMANDS.SET_SPEED_1,
-      2: COMMANDS.SET_SPEED_2,
-      3: COMMANDS.SET_SPEED_CUSTOM_1,
-      4: COMMANDS.SET_SPEED_CUSTOM_2,
-      5: COMMANDS.TOGGLE_AUTO_APPLY,
-    });
+    assert.equal(km.chords.v, COMMANDS.SET_SPEED_1);
+    assert.equal(km.chords.b, COMMANDS.SET_SPEED_2);
+    assert.equal(km.chords.n, COMMANDS.SET_SPEED_3);
+    assert.equal(km.chords.h, COMMANDS.TOGGLE_AUTO_APPLY);
   });
 });
 
 describe('DEFAULT_KEYMAP', () => {
-  it('chords 1-5 map to the speed and auto-apply commands from shortcuts.config.json', () => {
-    assert.equal(DEFAULT_KEYMAP.chords['1'], COMMANDS.SET_SPEED_1);
-    assert.equal(DEFAULT_KEYMAP.chords['2'], COMMANDS.SET_SPEED_2);
-    assert.equal(DEFAULT_KEYMAP.chords['3'], COMMANDS.SET_SPEED_CUSTOM_1);
-    assert.equal(DEFAULT_KEYMAP.chords['4'], COMMANDS.SET_SPEED_CUSTOM_2);
-    assert.equal(DEFAULT_KEYMAP.chords['5'], COMMANDS.TOGGLE_AUTO_APPLY);
+  it('chords v/b/n/h map to the speed and auto-apply commands from shortcuts.config.json', () => {
+    assert.equal(DEFAULT_KEYMAP.chords.v, COMMANDS.SET_SPEED_1);
+    assert.equal(DEFAULT_KEYMAP.chords.b, COMMANDS.SET_SPEED_2);
+    assert.equal(DEFAULT_KEYMAP.chords.n, COMMANDS.SET_SPEED_3);
+    assert.equal(DEFAULT_KEYMAP.chords.h, COMMANDS.TOGGLE_AUTO_APPLY);
   });
 });
 
 describe('SPEED_SHORTCUTS', () => {
-  it('has the four expected default speeds', () => {
+  it('has the three expected default speeds', () => {
     assert.deepEqual(SPEED_SHORTCUTS, {
       [COMMANDS.SET_SPEED_1]: 1,
-      [COMMANDS.SET_SPEED_2]: 2,
-      [COMMANDS.SET_SPEED_CUSTOM_1]: 1.25,
-      [COMMANDS.SET_SPEED_CUSTOM_2]: 1.5,
+      [COMMANDS.SET_SPEED_2]: 1.5,
+      [COMMANDS.SET_SPEED_3]: 2.0,
     });
   });
 });
@@ -103,12 +107,11 @@ describe('normalizeSpeedShortcuts', () => {
     const result = normalizeSpeedShortcuts({
       [COMMANDS.SET_SPEED_1]: 99,
       [COMMANDS.SET_SPEED_2]: 'fast',
-      [COMMANDS.SET_SPEED_CUSTOM_1]: 1.75,
+      [COMMANDS.SET_SPEED_3]: 1.75,
     });
     assert.equal(result[COMMANDS.SET_SPEED_1], SPEED_SHORTCUTS[COMMANDS.SET_SPEED_1]);
     assert.equal(result[COMMANDS.SET_SPEED_2], SPEED_SHORTCUTS[COMMANDS.SET_SPEED_2]);
-    assert.equal(result[COMMANDS.SET_SPEED_CUSTOM_1], 1.75);
-    assert.equal(result[COMMANDS.SET_SPEED_CUSTOM_2], SPEED_SHORTCUTS[COMMANDS.SET_SPEED_CUSTOM_2]);
+    assert.equal(result[COMMANDS.SET_SPEED_3], 1.75);
   });
 });
 

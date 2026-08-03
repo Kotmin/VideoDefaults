@@ -6,8 +6,7 @@ export const COMMANDS = Object.freeze({
   GO_HOME: 'go-home',
   SET_SPEED_1: 'set-speed-1',
   SET_SPEED_2: 'set-speed-2',
-  SET_SPEED_CUSTOM_1: 'set-speed-custom-1',
-  SET_SPEED_CUSTOM_2: 'set-speed-custom-2',
+  SET_SPEED_3: 'set-speed-3',
   TOGGLE_AUTO_APPLY: 'toggle-auto-apply',
 });
 
@@ -25,11 +24,10 @@ const FALLBACK_KEYMAP = Object.freeze({
   chords: Object.freeze({
     o: COMMANDS.SHOW_JUMP_LABELS,
     y: COMMANDS.GO_HOME,
-    1: COMMANDS.SET_SPEED_1,
-    2: COMMANDS.SET_SPEED_2,
-    3: COMMANDS.SET_SPEED_CUSTOM_1,
-    4: COMMANDS.SET_SPEED_CUSTOM_2,
-    5: COMMANDS.TOGGLE_AUTO_APPLY,
+    v: COMMANDS.SET_SPEED_1,
+    b: COMMANDS.SET_SPEED_2,
+    n: COMMANDS.SET_SPEED_3,
+    h: COMMANDS.TOGGLE_AUTO_APPLY,
   }),
   homeUrl: 'https://www.youtube.com/',
 });
@@ -53,14 +51,14 @@ function normalizePrefix(raw) {
 }
 
 function normalizeChords(raw) {
-  if (raw == null || typeof raw !== 'object') return { ...FALLBACK_KEYMAP.chords };
-  const chords = {};
+  const chords = { ...FALLBACK_KEYMAP.chords };
+  if (raw == null || typeof raw !== 'object') return chords;
   for (const [key, command] of Object.entries(raw)) {
     if (!isSingleChar(key)) continue;
     if (!KNOWN_COMMANDS.has(command)) continue;
     chords[key] = command;
   }
-  return Object.keys(chords).length > 0 ? chords : { ...FALLBACK_KEYMAP.chords };
+  return chords;
 }
 
 function normalizeHomeUrl(raw) {
@@ -89,9 +87,8 @@ export const DEFAULT_KEYMAP = Object.freeze(normalizeKeymap(shortcutsConfig));
 
 const FALLBACK_SPEEDS = Object.freeze({
   [COMMANDS.SET_SPEED_1]: 1,
-  [COMMANDS.SET_SPEED_2]: 2,
-  [COMMANDS.SET_SPEED_CUSTOM_1]: 1.25,
-  [COMMANDS.SET_SPEED_CUSTOM_2]: 1.5,
+  [COMMANDS.SET_SPEED_2]: 1.5,
+  [COMMANDS.SET_SPEED_3]: 2.0,
 });
 
 export function normalizeSpeedShortcuts(raw) {

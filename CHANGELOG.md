@@ -7,6 +7,14 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-08-03
+
+### Added
+- Declarative shortcuts config with `Ctrl+A` prefix chords `ca-1`..`ca-5` for jumping straight to preset playback speeds, plus an auto-apply chord.
+
+### Changed
+- Speed chords rebound to `v`/`b`/`n`/`h`; stored per-site overrides now merge with the new shortcut set instead of being replaced.
+
 ## [0.1.0] - 2026-07-29
 
 ### Added

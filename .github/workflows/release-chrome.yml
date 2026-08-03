@@ -95,12 +95,17 @@ jobs:
         id: cws_token
         if: ${{ steps.release_check.outputs.exists == 'false' }}
         run: |
-          RESPONSE="$(curl -sf -X POST https://oauth2.googleapis.com/token \
+          HTTP_CODE="$(curl -s -o response.json -w '%{http_code}' -X POST https://oauth2.googleapis.com/token \
             -d client_id="$CWS_CLIENT_ID" \
             -d client_secret="$CWS_CLIENT_SECRET" \
             -d refresh_token="$CWS_REFRESH_TOKEN" \
             -d grant_type=refresh_token)"
-          ACCESS_TOKEN="$(echo "$RESPONSE" | jq -r '.access_token')"
+          if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
+            echo "token mint failed (HTTP $HTTP_CODE):" >&2
+            cat response.json >&2
+            exit 1
+          fi
+          ACCESS_TOKEN="$(jq -r '.access_token' response.json)"
           echo "::add-mask::$ACCESS_TOKEN"
           echo "access_token=$ACCESS_TOKEN" >> "$GITHUB_OUTPUT"
         env:
@@ -111,11 +116,16 @@ jobs:
       - name: Upload to Chrome Web Store
         if: ${{ steps.release_check.outputs.exists == 'false' }}
         run: |
-          curl -sf -X POST \
+          HTTP_CODE="$(curl -s -o response.json -w '%{http_code}' -X POST \
             "https://chromewebstore.googleapis.com/v2/publishers/-/items/${CWS_EXTENSION_ID}:upload" \
             -H "Authorization: Bearer ${ACCESS_TOKEN}" \
             -H "Content-Type: application/zip" \
-            --data-binary "@dist/videodefaults-chrome-${VERSION}.zip"
+            --data-binary "@dist/videodefaults-chrome-${VERSION}.zip")"
+          if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
+            echo "upload failed (HTTP $HTTP_CODE):" >&2
+            cat response.json >&2
+            exit 1
+          fi
         env:
           ACCESS_TOKEN: ${{ steps.cws_token.outputs.access_token }}
           CWS_EXTENSION_ID: ${{ secrets.CWS_EXTENSION_ID }}
@@ -124,9 +134,14 @@ jobs:
       - name: Publish to Chrome Web Store
         if: ${{ steps.release_check.outputs.exists == 'false' }}
         run: |
-          curl -sf -X POST \
+          HTTP_CODE="$(curl -s -o response.json -w '%{http_code}' -X POST \
             "https://chromewebstore.googleapis.com/v2/publishers/-/items/${CWS_EXTENSION_ID}:publish" \
-            -H "Authorization: Bearer ${ACCESS_TOKEN}"
+            -H "Authorization: Bearer ${ACCESS_TOKEN}")"
+          if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
+            echo "publish failed (HTTP $HTTP_CODE):" >&2
+            cat response.json >&2
+            exit 1
+          fi
         env:
           ACCESS_TOKEN: ${{ steps.cws_token.outputs.access_token }}
           CWS_EXTENSION_ID: ${{ secrets.CWS_EXTENSION_ID }}

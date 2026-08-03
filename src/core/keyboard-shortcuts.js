@@ -40,8 +40,10 @@ function isSingleChar(value) {
   return typeof value === 'string' && value.length === 1 && /[a-z0-9]/.test(value);
 }
 
-function normalizePrefix(raw) {
-  const d = FALLBACK_KEYMAP.prefix;
+function normalizePrefix(raw, isMac = false) {
+  const d = isMac
+    ? { key: FALLBACK_KEYMAP.prefix.key, ctrl: false, meta: true }
+    : FALLBACK_KEYMAP.prefix;
   if (raw == null || typeof raw !== 'object') return { ...d };
   const key = isSingleChar(raw.key) ? raw.key : d.key;
   const ctrl = typeof raw.ctrl === 'boolean' ? raw.ctrl : d.ctrl;
@@ -74,10 +76,10 @@ function normalizeHomeUrl(raw) {
   }
 }
 
-export function normalizeKeymap(raw) {
+export function normalizeKeymap(raw, isMac = false) {
   const src = raw != null && typeof raw === 'object' ? raw : {};
   return {
-    prefix: normalizePrefix(src.prefix),
+    prefix: normalizePrefix(src.prefix, isMac),
     chords: normalizeChords(src.chords),
     homeUrl: normalizeHomeUrl(src.homeUrl),
   };

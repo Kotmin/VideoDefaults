@@ -13,7 +13,7 @@
       await import(browser.runtime.getURL('lib/site-adapters/youtube/youtube-site-adapter.js'));
     const { createPlayerAdapter } = await import(browser.runtime.getURL('lib/player-adapters/html5-video-player-adapter.js'));
     const {
-      COMMANDS, createShortcutController, generateLabels, filterLabelPairs,
+      COMMANDS, SPEED_SHORTCUTS, createShortcutController, generateLabels, filterLabelPairs,
     } = await import(browser.runtime.getURL('lib/core/keyboard-shortcuts.js'));
     const { collectJumpTargets, createJumpOverlay } =
       await import(browser.runtime.getURL('lib/ui/jump-overlay.js'));
@@ -38,6 +38,20 @@
       if (player.getSpeed() === speed) return;
       state = markExtensionWrite(state, nextToken());
       player.setSpeed(speed);
+    }
+
+    async function setDefaultSpeedFromShortcut(speed) {
+      const v = validateSpeed(speed);
+      if (!v.valid) return;
+      settings = { ...settings, defaultSpeed: v.value };
+      await browser.storage.local.set({ videodefaults_settings: settings });
+      state = clearOverride(state);
+      applySpeed(v.value);
+    }
+
+    async function toggleAutoApply() {
+      settings = { ...settings, youtubeEnabled: !settings.youtubeEnabled };
+      await browser.storage.local.set({ videodefaults_settings: settings });
     }
 
     const tryInitVideo = debounce(() => {
@@ -162,6 +176,8 @@
         if (result.pending) pendingTimer = setTimeout(() => controller.cancel(), 2000);
         if (result.command === COMMANDS.GO_HOME) goHome();
         if (result.command === COMMANDS.SHOW_JUMP_LABELS) openOverlay();
+        if (result.command in SPEED_SHORTCUTS) setDefaultSpeedFromShortcut(SPEED_SHORTCUTS[result.command]);
+        if (result.command === COMMANDS.TOGGLE_AUTO_APPLY) toggleAutoApply();
       }, true);
     }
 

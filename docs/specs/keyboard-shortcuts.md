@@ -14,6 +14,11 @@ select, or contenteditable — `Ctrl+A` still selects text there.
 |---|---|---|
 | `Ctrl+A` then `o` | `show-jump-labels` | Overlay deterministic two-char indexes on clickable elements; type an index to focus+click it |
 | `Ctrl+A` then `y` | `go-home` | Go to the main YouTube page (clicks the logo; falls back to `homeUrl`) |
+| `Ctrl+A` then `1` | `set-speed-1` | Set playback speed to slot 1's configured value (default `1`); persists as `settings.defaultSpeed` and applies to the active video |
+| `Ctrl+A` then `2` | `set-speed-2` | Same as above for slot 2 (default `2`) |
+| `Ctrl+A` then `3` | `set-speed-custom-1` | Same as above for custom slot 1 (default `1.25`) |
+| `Ctrl+A` then `4` | `set-speed-custom-2` | Same as above for custom slot 2 (default `1.5`) |
+| `Ctrl+A` then `5` | `toggle-auto-apply` | Flip `settings.youtubeEnabled` (auto-apply default speed on video load); persisted only, no video interaction |
 | `Ctrl+A` then `Esc` | — | Cancel the pending prefix |
 
 Pending prefix times out after 2 s. An unknown key after the prefix cancels it
@@ -36,19 +41,37 @@ still held (`Ctrl+A`, keep Ctrl, `o` works).
 
 ## Configuration
 
-The keymap lives in settings (`browser.storage.local`, key
-`videodefaults_settings.keymap`) and is sanitized by
-`normalizeKeymap()` (`src/core/keyboard-shortcuts.js`) on every read:
+`DEFAULT_KEYMAP` and the default speed-shortcut values are sourced from the
+checked-in `src/core/shortcuts.config.json`, sanitized at module load through
+the same `normalizeKeymap()` / `normalizeSpeedShortcuts()` functions used for
+storage-provided overrides (`src/core/keyboard-shortcuts.js`) — retuning a
+shortcut key or a speed value is a one-file edit, no code change needed:
 
 ```json
 {
-  "keymap": {
-    "prefix": { "key": "a", "ctrl": true, "meta": false },
-    "chords": { "o": "show-jump-labels", "y": "go-home" },
-    "homeUrl": "https://www.youtube.com/"
+  "prefix": { "key": "a", "ctrl": true, "meta": false },
+  "chords": {
+    "o": "show-jump-labels",
+    "y": "go-home",
+    "1": "set-speed-1",
+    "2": "set-speed-2",
+    "3": "set-speed-custom-1",
+    "4": "set-speed-custom-2",
+    "5": "toggle-auto-apply"
+  },
+  "homeUrl": "https://www.youtube.com/",
+  "speeds": {
+    "set-speed-1": 1,
+    "set-speed-2": 2,
+    "set-speed-custom-1": 1.25,
+    "set-speed-custom-2": 1.5
   }
 }
 ```
+
+The keymap can also be overridden per-install in settings
+(`browser.storage.local`, key `videodefaults_settings.keymap`), sanitized by
+the same `normalizeKeymap()` on every read:
 
 - `prefix` must include `ctrl` or `meta` (macOS users can set
   `{ "key": "a", "ctrl": false, "meta": true }` for `⌘A`); a plain-key prefix
@@ -57,6 +80,10 @@ The keymap lives in settings (`browser.storage.local`, key
 - `chords` maps single keys to known commands; unknown commands are dropped.
 - `homeUrl` must be an `https://*.youtube.com` URL (blocks `javascript:` and
   third-party redirect targets).
+- `speeds` maps each `set-speed-*` command to a numeric value validated by
+  `validateSpeed()` (`src/core/speed.js`); out-of-range or non-numeric entries
+  fall back to that command's default (see table above) — exposed as
+  `SPEED_SHORTCUTS`.
 - Settings changes apply live (storage listener); no reload needed.
 
 No options UI yet — edit via storage or wait for the options page

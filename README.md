@@ -67,7 +67,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Support
 
-This project is free. If you'd like to support it: [Buy Me a Coffee](https://www.buymeacoffee.com/TODO) <!-- replace TODO with your handle -->
+This project is free. If you'd like to support it: [Buy Me a Coffee](https://buymeacoffee.com/kotmin)
 
 ## License
 

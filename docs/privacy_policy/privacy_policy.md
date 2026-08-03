@@ -58,4 +58,4 @@ requirements.
 
 For privacy-related questions, contact:
 
-YOUR_EMAIL_ADDRESS
+groovy.tech.cat@gmail.com

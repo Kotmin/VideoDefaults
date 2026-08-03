@@ -1,6 +1,13 @@
+import shortcutsConfig from './shortcuts.config.json' with { type: 'json' };
+import { validateSpeed } from './speed.js';
+
 export const COMMANDS = Object.freeze({
   SHOW_JUMP_LABELS: 'show-jump-labels',
   GO_HOME: 'go-home',
+  SET_SPEED_1: 'set-speed-1',
+  SET_SPEED_2: 'set-speed-2',
+  SET_SPEED_3: 'set-speed-3',
+  TOGGLE_AUTO_APPLY: 'toggle-auto-apply',
 });
 
 const KNOWN_COMMANDS = new Set(Object.values(COMMANDS));
@@ -12,11 +19,15 @@ export const RESERVED_YOUTUBE_KEYS = Object.freeze([
   'arrowup', 'arrowdown', 'arrowleft', 'arrowright',
 ]);
 
-export const DEFAULT_KEYMAP = Object.freeze({
+const FALLBACK_KEYMAP = Object.freeze({
   prefix: Object.freeze({ key: 'a', ctrl: true, meta: false }),
   chords: Object.freeze({
     o: COMMANDS.SHOW_JUMP_LABELS,
     y: COMMANDS.GO_HOME,
+    v: COMMANDS.SET_SPEED_1,
+    b: COMMANDS.SET_SPEED_2,
+    n: COMMANDS.SET_SPEED_3,
+    h: COMMANDS.TOGGLE_AUTO_APPLY,
   }),
   homeUrl: 'https://www.youtube.com/',
 });
@@ -30,7 +41,7 @@ function isSingleChar(value) {
 }
 
 function normalizePrefix(raw) {
-  const d = DEFAULT_KEYMAP.prefix;
+  const d = FALLBACK_KEYMAP.prefix;
   if (raw == null || typeof raw !== 'object') return { ...d };
   const key = isSingleChar(raw.key) ? raw.key : d.key;
   const ctrl = typeof raw.ctrl === 'boolean' ? raw.ctrl : d.ctrl;
@@ -40,26 +51,26 @@ function normalizePrefix(raw) {
 }
 
 function normalizeChords(raw) {
-  if (raw == null || typeof raw !== 'object') return { ...DEFAULT_KEYMAP.chords };
-  const chords = {};
+  const chords = { ...FALLBACK_KEYMAP.chords };
+  if (raw == null || typeof raw !== 'object') return chords;
   for (const [key, command] of Object.entries(raw)) {
     if (!isSingleChar(key)) continue;
     if (!KNOWN_COMMANDS.has(command)) continue;
     chords[key] = command;
   }
-  return Object.keys(chords).length > 0 ? chords : { ...DEFAULT_KEYMAP.chords };
+  return chords;
 }
 
 function normalizeHomeUrl(raw) {
-  if (typeof raw !== 'string') return DEFAULT_KEYMAP.homeUrl;
+  if (typeof raw !== 'string') return FALLBACK_KEYMAP.homeUrl;
   try {
     const parsed = new URL(raw);
-    if (parsed.protocol !== 'https:') return DEFAULT_KEYMAP.homeUrl;
+    if (parsed.protocol !== 'https:') return FALLBACK_KEYMAP.homeUrl;
     const host = parsed.hostname;
-    if (host !== 'youtube.com' && !host.endsWith('.youtube.com')) return DEFAULT_KEYMAP.homeUrl;
+    if (host !== 'youtube.com' && !host.endsWith('.youtube.com')) return FALLBACK_KEYMAP.homeUrl;
     return raw;
   } catch {
-    return DEFAULT_KEYMAP.homeUrl;
+    return FALLBACK_KEYMAP.homeUrl;
   }
 }
 
@@ -71,6 +82,26 @@ export function normalizeKeymap(raw) {
     homeUrl: normalizeHomeUrl(src.homeUrl),
   };
 }
+
+export const DEFAULT_KEYMAP = Object.freeze(normalizeKeymap(shortcutsConfig));
+
+const FALLBACK_SPEEDS = Object.freeze({
+  [COMMANDS.SET_SPEED_1]: 1,
+  [COMMANDS.SET_SPEED_2]: 1.5,
+  [COMMANDS.SET_SPEED_3]: 2.0,
+});
+
+export function normalizeSpeedShortcuts(raw) {
+  const src = raw != null && typeof raw === 'object' ? raw : {};
+  const out = {};
+  for (const [command, fallback] of Object.entries(FALLBACK_SPEEDS)) {
+    const v = validateSpeed(src[command]);
+    out[command] = v.valid ? v.value : fallback;
+  }
+  return Object.freeze(out);
+}
+
+export const SPEED_SHORTCUTS = normalizeSpeedShortcuts(shortcutsConfig.speeds);
 
 export function eventMatchesPrefix(evt, prefix) {
   return typeof evt.key === 'string'

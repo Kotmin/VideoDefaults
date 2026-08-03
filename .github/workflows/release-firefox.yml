@@ -1,14 +1,24 @@
-name: Release Main
+name: Release Firefox
 
 on:
   push:
     branches: [main]
+    paths:
+      - 'apps/firefox-extension/**'
+      - 'apps/shared/**'
+      - 'src/**'
+      - 'scripts/**'
+      - 'tools/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'CHANGELOG.md'
+      - '.github/workflows/release-firefox.yml'
   workflow_dispatch:
 
 permissions:
   contents: write
 
-# Publishes VideoDefaults: check -> test -> package -> changelog -> AMO sign -> GitHub release.
+# Publishes the Firefox edition of VideoDefaults: check -> test -> package -> changelog -> AMO sign -> GitHub release.
 # See docs/release/amo-developer-setup.md for one-time AMO credential setup and
 # docs/release/amo-release-checklist.md for the full manual release process this
 # pipeline partially automates.
@@ -16,7 +26,7 @@ permissions:
 # This workflow must not run on untrusted PR contexts with privileged secrets.
 
 concurrency:
-  group: release-main
+  group: release-firefox
   cancel-in-progress: false
 
 jobs:
@@ -54,11 +64,8 @@ jobs:
           bash scripts/sync-extension-lib.sh
           npx web-ext lint --source-dir apps/firefox-extension --no-input
 
-      - name: Package extensions (firefox, chrome, edge)
-        run: |
-          for app in firefox-extension chrome-extension edge-extension; do
-            bash scripts/package-extension.sh "$app"
-          done
+      - name: Package firefox-extension
+        run: bash scripts/package-extension.sh firefox-extension
 
       - name: Read release version
         id: version

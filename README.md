@@ -4,6 +4,25 @@ Firefox WebExtension that preserves default video playback settings.
 
 **MVP:** Applies a configurable default playback speed (default `2.0`) to YouTube videos. Provides a popup with preset buttons (`1x`, `1.5x`, `2x`) and a custom speed input. Respects manual speed changes on the current page without overriding them.
 
+## Keyboard Shortcuts
+
+Press `Ctrl+A`, then a command key (tmux-style prefix — outside that window every native YouTube shortcut still works):
+
+| Chord | Action |
+| --- | --- |
+| `Ctrl+A` `o` | Open jump overlay (labels clickable elements) |
+| `Ctrl+A` `y` | Go home |
+| `Ctrl+A` `v` | Set speed to preset 1 (default `1x`) |
+| `Ctrl+A` `b` | Set speed to preset 2 (default `1.5x`) |
+| `Ctrl+A` `n` | Set speed to preset 3 (default `2x`) |
+| `Ctrl+A` `h` | Toggle auto-apply default speed on video load |
+
+Full reference: [docs/keyboard-quickstart.md](docs/keyboard-quickstart.md).
+
+### Customizing keybindings and speeds
+
+Edit `src/core/shortcuts.config.json` to change the prefix key, any chord binding, or the three preset speed values. Speed values must fall within the allowed range (`0.25`–`4.0`), but only use values YouTube itself will actually honor for your account — e.g. speeds above `2x` are a YouTube Premium feature, so a non-Premium account silently caps at `2x` regardless of what's configured here. Respect the platform's own limits when picking a value. Details: [docs/specs/keyboard-shortcuts.md](docs/specs/keyboard-shortcuts.md).
+
 ## Status
 
 Active development on `dev` branch. Not yet published to AMO.
@@ -41,6 +60,14 @@ Build any edition with `bash scripts/package-extension.sh <firefox|chrome|edge>-
 
 - `dev` — active development
 - `main` — release only; updated via rebase from dev
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Support
+
+This project is free. If you'd like to support it: [Buy Me a Coffee](https://buymeacoffee.com/kotmin)
 
 ## License
 

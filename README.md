@@ -61,6 +61,10 @@ Build any edition with `bash scripts/package-extension.sh <firefox|chrome|edge>-
 - `dev` — active development
 - `main` — release only; updated via rebase from dev
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Support
 
 This project is free. If you'd like to support it: [Buy Me a Coffee](https://www.buymeacoffee.com/TODO) <!-- replace TODO with your handle -->

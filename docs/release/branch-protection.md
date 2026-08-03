@@ -44,7 +44,12 @@ Never use `git merge dev` (creates a merge commit). Never force-push `main` exce
 
 ## Release Pipeline
 
-`Release Main` (`.github/workflows/release-main.yml`) runs the full publish pipeline on every push to `main`: secret scan, check, test, package, changelog, AMO signing, GitHub Release. It requires `AMO_ISSUER` and `AMO_SECRET` repository secrets — see `docs/release/amo-developer-setup.md` for how to generate and add them. Without those secrets configured, the signing/release steps of the workflow will fail (the check/test/package/secret-scan steps still run and provide useful signal on their own).
+Two per-edition workflows run the publish pipeline on pushes to `main`, each gated by an `on.push.paths` filter so a change to one edition doesn't trigger a release for the other:
+
+- `Release Firefox` (`.github/workflows/release-firefox.yml`): secret scan, check, test, package, changelog, AMO signing, GitHub Release (tag `v<version>`). Requires `AMO_ISSUER` and `AMO_SECRET` repository secrets — see `docs/release/amo-developer-setup.md` for how to generate and add them.
+- `Release Chrome` (`.github/workflows/release-chrome.yml`): secret scan, check, test, package, changelog, Chrome Web Store publish, GitHub Release (tag `chrome-v<version>`). Requires `CWS_CLIENT_ID`, `CWS_CLIENT_SECRET`, `CWS_REFRESH_TOKEN`, `CWS_EXTENSION_ID` repository secrets — see `docs/release/cws-developer-setup.md`.
+
+Without those secrets configured, the signing/publish/release steps of the relevant workflow will fail (the check/test/package/secret-scan steps still run and provide useful signal on their own).
 
 ## Secret Scanning
 

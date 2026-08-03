@@ -10,6 +10,7 @@ CWS publishing uses OAuth2, not a static API key.
 2. Enable the **Chrome Web Store API**.
 3. Create an OAuth client: **APIs & Services → Credentials → Create Credentials → OAuth client ID**, type **Web application**. Add `https://developers.google.com/oauthplayground` as an authorized redirect URI (only needed to mint the refresh token below, not used at runtime).
 4. Note the **Client ID** and **Client Secret**.
+5. Go to **APIs & Services → OAuth consent screen → Audience** → **Publish App** → **In production**. Do **not** submit for verification — Google may refuse to verify this scope since it's meant for single-owner use, and staying unverified-in-production is fine at the 1-user scale this project runs at. Skipping this step leaves the app in "Testing" status, where Google expires the refresh token below after 7 days.
 
 ## 2. One-Time: Mint a Refresh Token
 
@@ -18,11 +19,11 @@ Done once, by hand, using the OAuth Playground:
 1. Go to https://developers.google.com/oauthplayground.
 2. Gear icon → check "Use your own OAuth credentials" → paste the Client ID/Secret from step 1.
 3. In the left panel, enter scope `https://www.googleapis.com/auth/chromewebstore` → Authorize → sign in with the CWS developer account → Exchange authorization code for tokens.
-4. Copy the **refresh token** shown. This does not expire on its own; it's the credential CI uses to mint short-lived access tokens.
+4. Copy the **refresh token** shown. It does not expire on its own **once the OAuth consent screen is Published/In production** (step 5 above) — `chromewebstore` is not in the small set of scopes exempt from the 7-day expiry Google applies to refresh tokens minted while the app is still in "Testing" status.
 
 ## 3. Add GitHub Repository Secrets
 
-`release-main.yml` will read these exact names once the Chrome publish step is added:
+`release-chrome.yml` reads these exact names for its Chrome publish step:
 
 - `CWS_CLIENT_ID`
 - `CWS_CLIENT_SECRET`
@@ -38,13 +39,15 @@ Same constraint as AMO: the API only updates an *existing* store item, it cannot
 3. Fill in the Store Listing tab (description, screenshots, category) and the **Privacy practices** tab — a single-purpose description plus a justification for each requested permission (`storage`, `host_permissions` for `youtube.com`) is mandatory; the submission is rejected without it.
 4. Submit for review. Once approved, copy the item id from the dashboard URL into the `CWS_EXTENSION_ID` secret.
 
-## 5. What CI Can Automate After That
+## 5. What CI Automates After That
 
-With all four secrets set, a publish step can, per push to `main`:
+With all four secrets set, `release-chrome.yml` runs this on every push to `main` that touches Chrome-relevant paths:
 
 1. `POST https://oauth2.googleapis.com/token` with `client_id`, `client_secret`, `refresh_token`, `grant_type=refresh_token` → short-lived access token (no npm dependency needed, plain HTTP).
 2. `POST https://chromewebstore.googleapis.com/v2/publishers/{publisher_id}/items/{CWS_EXTENSION_ID}:upload` with the zip.
 3. `POST .../items/{CWS_EXTENSION_ID}:publish` to submit the uploaded draft for review.
+
+The workflow uses `-` as the `{publisher_id}` path segment (CWS accepts this as "infer from the authenticated account/item") since no separate publisher id secret exists — confirm this resolves correctly against the real account on the first live run.
 
 **It cannot force the review to complete** — same caveat as AMO: a green CI run means "submitted," not "live." Track status via `:fetchStatus` or the dashboard.
 

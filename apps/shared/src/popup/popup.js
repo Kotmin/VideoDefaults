@@ -2,9 +2,11 @@ import { PRESETS, validateSpeed } from '../../lib/core/speed.js';
 import { applyDefaults } from '../../lib/core/settings.js';
 import { MESSAGE_TYPES } from '../../lib/core/validation.js';
 import { createStorageAdapter } from '../../lib/browser-adapters/firefox/firefox-storage-adapter.js';
+import { isMacPlatform } from '../../lib/core/platform.js';
 
 const browser = globalThis.browser ?? globalThis.chrome;
 const storage = createStorageAdapter(browser);
+const isMac = isMacPlatform(navigator);
 const statusEl = document.getElementById('status');
 const errorEl = document.getElementById('error');
 const inputEl = document.getElementById('speed-input');
@@ -43,7 +45,7 @@ async function applySpeed(speed) {
   const v = validateSpeed(speed);
   if (!v.valid) { showError(v.error); return; }
   clearError();
-  const settings = applyDefaults(await storage.getSettings());
+  const settings = applyDefaults(await storage.getSettings(), isMac);
   await storage.saveSettings({ ...settings, defaultSpeed: v.value });
   const result = await sendToContent({
     type: MESSAGE_TYPES.APPLY_SPEED_TO_ACTIVE_VIDEO,
@@ -70,12 +72,12 @@ for (const preset of PRESETS) {
 }
 
 autoApplyEl.addEventListener('change', async () => {
-  const settings = applyDefaults(await storage.getSettings());
+  const settings = applyDefaults(await storage.getSettings(), isMac);
   await storage.saveSettings({ ...settings, youtubeEnabled: autoApplyEl.checked });
 });
 
 async function loadAutoApplyState() {
-  const settings = applyDefaults(await storage.getSettings());
+  const settings = applyDefaults(await storage.getSettings(), isMac);
   autoApplyEl.checked = settings.youtubeEnabled;
 }
 

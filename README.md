@@ -17,6 +17,8 @@ Press `Ctrl+A`, then a command key (tmux-style prefix — outside that window ev
 | `Ctrl+A` `n` | Set speed to preset 3 (default `2x`) |
 | `Ctrl+A` `h` | Toggle auto-apply default speed on video load |
 
+The prefix defaults to `Cmd+A` on macOS and `Ctrl+A` on Windows/Linux, fully overridable.
+
 Full reference: [docs/keyboard-quickstart.md](docs/keyboard-quickstart.md).
 
 ### Customizing keybindings and speeds

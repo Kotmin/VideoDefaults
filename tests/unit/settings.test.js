@@ -78,6 +78,19 @@ describe('applyDefaults', () => {
     assert.equal(applyDefaults({ volumeMode: 'off' }).volumeMode, 'leave');
   });
 
+  it('isMac omitted still equals DEFAULT_SETTINGS exactly', () => {
+    assert.deepEqual(applyDefaults({}), DEFAULT_SETTINGS);
+  });
+
+  it('isMac true defaults keymap.prefix to Cmd+A', () => {
+    assert.deepEqual(applyDefaults({}, true).keymap.prefix, { key: 'a', ctrl: false, meta: true });
+  });
+
+  it('isMac true keeps an already-stored prefix', () => {
+    const result = applyDefaults({ keymap: { prefix: { key: 'a', ctrl: true, meta: false } } }, true);
+    assert.deepEqual(result.keymap.prefix, { key: 'a', ctrl: true, meta: false });
+  });
+
   it('settings survive JSON round-trip', () => {
     const original = { defaultSpeed: 1.5, youtubeEnabled: false };
     const roundTripped = JSON.parse(JSON.stringify(original));

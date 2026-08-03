@@ -2,6 +2,12 @@
 
 VideoDefaults uses a tmux-style prefix chord — press the prefix, then a command key.
 
+## Platform notes
+
+Windows and Linux use `Ctrl+A` as the prefix. macOS defaults to `Cmd+A`
+automatically. The prefix (and every chord) can be changed to whatever you
+want via the extension's stored settings, same as any other override.
+
 | Key / Chord | Action | Context |
 | --- | --- | --- |
 | `Ctrl+A` | Prefix — arms the next key as a command (default binding, configurable) | Global |

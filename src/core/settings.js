@@ -30,7 +30,7 @@ function resolveVolumeMode(value) {
   return VALID_VOLUME_MODES.includes(value) ? value : DEFAULT_SETTINGS.volumeMode;
 }
 
-export function applyDefaults(partial) {
+export function applyDefaults(partial, isMac = false) {
   const src = partial != null && typeof partial === 'object' ? partial : {};
   return {
     schemaVersion: DEFAULT_SETTINGS.schemaVersion,
@@ -39,15 +39,15 @@ export function applyDefaults(partial) {
     youtubeEnabled: resolveYoutubeEnabled(src.youtubeEnabled),
     captionsMode: resolveCaptionsMode(src.captionsMode),
     volumeMode: resolveVolumeMode(src.volumeMode),
-    keymap: normalizeKeymap(src.keymap),
+    keymap: normalizeKeymap(src.keymap, isMac),
   };
 }
 
-export function migrateSettings(raw) {
+export function migrateSettings(raw, isMac = false) {
   if (raw == null || typeof raw !== 'object') {
-    return applyDefaults({});
+    return applyDefaults({}, isMac);
   }
-  return applyDefaults(raw);
+  return applyDefaults(raw, isMac);
 }
 
 export function validateSettings(obj) {

@@ -35,6 +35,21 @@ describe('normalizeKeymap', () => {
     assert.deepEqual(km.prefix, { key: 'a', ctrl: false, meta: true });
   });
 
+  it('isMac omitted or false leaves prefix defaulting behavior unchanged', () => {
+    assert.deepEqual(normalizeKeymap(null).prefix, { key: 'a', ctrl: true, meta: false });
+    assert.deepEqual(normalizeKeymap(null, false).prefix, { key: 'a', ctrl: true, meta: false });
+  });
+
+  it('isMac true defaults the prefix to Cmd+A when no stored prefix is present', () => {
+    assert.deepEqual(normalizeKeymap(null, true).prefix, { key: 'a', ctrl: false, meta: true });
+    assert.deepEqual(normalizeKeymap({}, true).prefix, { key: 'a', ctrl: false, meta: true });
+  });
+
+  it('isMac true does not override an already-valid stored prefix', () => {
+    const km = normalizeKeymap({ prefix: { key: 'a', ctrl: true, meta: false } }, true);
+    assert.deepEqual(km.prefix, { key: 'a', ctrl: true, meta: false });
+  });
+
   it('drops chords with unknown commands and invalid keys, keeping defaults for the rest', () => {
     const km = normalizeKeymap({ chords: { y: COMMANDS.GO_HOME, x: 'rm-rf', long: COMMANDS.GO_HOME } });
     assert.deepEqual(km.chords, { ...DEFAULT_KEYMAP.chords });

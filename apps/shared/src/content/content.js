@@ -3,6 +3,7 @@
     const browser = globalThis.browser ?? globalThis.chrome;
     const { applyDefaults } = await import(browser.runtime.getURL('lib/core/settings.js'));
     const { validateSpeed } = await import(browser.runtime.getURL('lib/core/speed.js'));
+    const { isMacPlatform } = await import(browser.runtime.getURL('lib/core/platform.js'));
     const {
       createState, markExtensionWrite, markManualOverride,
       clearOverride, isManualOverride, clearExtensionToken,
@@ -18,6 +19,7 @@
     const { collectJumpTargets, createJumpOverlay } =
       await import(browser.runtime.getURL('lib/ui/jump-overlay.js'));
 
+    const isMac = isMacPlatform(navigator);
     let settings = null;
     let state = createState();
     let player = null;
@@ -30,7 +32,7 @@
 
     async function loadSettings() {
       const stored = await browser.storage.local.get('videodefaults_settings');
-      settings = applyDefaults(stored.videodefaults_settings ?? {});
+      settings = applyDefaults(stored.videodefaults_settings ?? {}, isMac);
     }
 
     function applySpeed(speed) {
@@ -182,12 +184,12 @@
     }
 
     async function init() {
-      await loadSettings().catch(() => { settings = applyDefaults({}); });
+      await loadSettings().catch(() => { settings = applyDefaults({}, isMac); });
       setupKeyboard();
 
       browser.storage.onChanged.addListener((changes, area) => {
         if (area !== 'local' || !changes.videodefaults_settings) return;
-        settings = applyDefaults(changes.videodefaults_settings.newValue ?? {});
+        settings = applyDefaults(changes.videodefaults_settings.newValue ?? {}, isMac);
       });
 
       const siteAdapter = createYouTubeSiteAdapter(document, window);

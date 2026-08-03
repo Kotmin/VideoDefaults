@@ -86,6 +86,14 @@ the same `normalizeKeymap()` on every read:
   `SPEED_SHORTCUTS`.
 - Settings changes apply live (storage listener); no reload needed.
 
+The prefix's fallback default is platform-aware: on macOS it resolves to
+`{ key: 'a', ctrl: false, meta: true }` (`⌘A`) instead of the OS-agnostic
+`Ctrl+A`, detected via `isMacPlatform()` (`src/core/platform.js`) and threaded
+through as the `isMac` parameter on `normalizeKeymap()` / `applyDefaults()` /
+`migrateSettings()`. This only applies when no `keymap.prefix` is already
+stored — an existing stored value (valid or user-set) always wins, and
+`DEFAULT_KEYMAP` itself stays OS-agnostic (`isMac` defaults to `false`).
+
 No options UI yet — edit via storage or wait for the options page
 (see `docs/ai/questions-for-K.md` Q8).
 

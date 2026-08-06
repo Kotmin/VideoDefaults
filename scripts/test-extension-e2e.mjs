@@ -90,10 +90,18 @@ class FirefoxRDP {
   }
 
   async evaluate(consoleActor, text) {
+    // evaluate() calls in this script are always awaited sequentially, never
+    // concurrent. Any resultID-bearing message still sitting in the inbox at this
+    // point is a stale leftover from a prior call whose own wait already timed out
+    // and moved on — drop it, or it gets misread as this call's ack/result.
+    this.#inbox = this.#inbox.filter(m => m.resultID === undefined);
     this.send(consoleActor, 'evaluateJSAsync', { text, options: {} });
-    const ack = await this.waitFor(m => m.from === consoleActor && m.resultID, 5000);
+    // The server sometimes sends the ack and the result as one combined message
+    // (fast evaluations) and sometimes as two (ack first, result later).
+    const first = await this.waitFor(m => m.from === consoleActor && m.resultID !== undefined, 5000);
+    if (first.result !== undefined) return FirefoxRDP.#unwrap(first.result);
     const res = await this.waitFor(
-      m => m.resultID === ack.resultID && m.result !== undefined, 10000
+      m => m.resultID === first.resultID && m.result !== undefined, 10000
     );
     return FirefoxRDP.#unwrap(res.result);
   }
@@ -192,12 +200,12 @@ async function navigate(rdp, currentCon, url) {
 
 const VIDEO_SEL = `'video.html5-main-video,video'`;
 
-async function refreshActor(rdp, con) {
-  // Pick up the newest YouTube watch-page actor (windowGlobal replacement).
+async function refreshActor(rdp, con, urlPrefix = 'https://www.youtube.com/watch') {
+  // Pick up the newest YouTube actor (windowGlobal replacement).
   // Rejects: about:blank, sub-frames with CDN URLs, Google sign-in redirects.
   try {
     const t = await rdp.waitFor(
-      m => ytTarget(m, 'https://www.youtube.com/watch'), 1000
+      m => ytTarget(m, urlPrefix), 1000
     );
     process.stderr.write(`    refresh-ok url=${(t.target.url||'').slice(0,60)}\n`);
     return t.target.consoleActor;
@@ -339,6 +347,53 @@ async function main() {
     }
     log('TC-16', typeof homeHref === 'string' && homeHref.startsWith(YT_HOME), `href=${homeHref}`);
   } catch (e) { log('TC-16', false, e.message.slice(0, 80)); }
+
+  // TC-17: queue-label overlay (prefix chord Ctrl+A, p) opens labels; picking one
+  // opens the video's menu, clicks "Add to queue", and shows a confirmation badge.
+  // Runs on a watch page (like TC-01/07/15), not the home feed — the home route
+  // reliably fails to hydrate #page-manager under this automated Firefox harness
+  // (confirmed both here and independently via Playwright), while watch pages hydrate
+  // fine and their "Up next" sidebar uses the same yt-lockup-view-model component.
+  process.stderr.write('\nTC-17: queue-label overlay via prefix chord\n');
+  try {
+    con = await navigate(rdp, con, YT_B);
+    await sleep(5000);
+    con = await refreshActor(rdp, con, YT_B);
+    await waitForVideo(rdp, con);
+    let lockupCount = 0;
+    for (let i = 0; i < 10 && lockupCount === 0; i++) {
+      lockupCount = await rdp.evaluate(con,
+        `document.querySelectorAll('.ytLockupMetadataViewModelMenuButton button').length`).catch(() => 0);
+      if (lockupCount === 0) await sleep(1000);
+    }
+    process.stderr.write(`    sidebar menu buttons after wait = ${lockupCount}\n`);
+    await rdp.evaluate(con, `
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', ctrlKey: true, bubbles: true }));
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'p', bubbles: true }));
+    `);
+    await sleep(500);
+    const queueLabelCount = await rdp.evaluate(con,
+      `document.querySelectorAll('[data-videodefaults-overlay] span').length`);
+    process.stderr.write(`    queue labels = ${queueLabelCount}\n`);
+    if (queueLabelCount > 0) {
+      const firstLabel = await rdp.evaluate(con,
+        `document.querySelector('[data-videodefaults-overlay] span').textContent`);
+      for (const ch of firstLabel.toLowerCase()) {
+        await rdp.evaluate(con,
+          `window.dispatchEvent(new KeyboardEvent('keydown', { key: ${JSON.stringify(ch)}, bubbles: true }))`);
+        await sleep(150);
+      }
+      let confirmed = false;
+      for (let i = 0; i < 10 && !confirmed; i++) {
+        confirmed = await rdp.evaluate(con,
+          `document.querySelector('[data-videodefaults-queue-confirm]') !== null`).catch(() => false);
+        if (!confirmed) await sleep(200);
+      }
+      log('TC-17', confirmed, `label=${firstLabel}, confirmation-badge-seen=${confirmed}`);
+    } else {
+      log('TC-17', false, 'no queue labels rendered');
+    }
+  } catch (e) { log('TC-17', false, e.message.slice(0, 80)); }
 
   // TC-12: no external network from extension (architecture check)
   log('TC-12', true, 'extension makes no external requests (content-script only, no fetch/XHR)');

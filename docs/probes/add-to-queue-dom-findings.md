@@ -269,3 +269,26 @@ in two parts:
   that page produced 0 queue labels since none of the pre-existing selector branches matched
   anything there. `TC-18` deliberately does not attempt to click through a label, since that would
   exercise the unverified hover-forcing path described above.
+
+## Follow-up: two-frame settle delay narrowed but didn't close the recycling race
+
+After the trigger-selector fix shipped and was confirmed working, the user reported a new
+symptom: adding one video to the queue, then adding a second video shortly after, would
+sometimes add the *first* video twice instead of adding two independent records. This is the
+same DOM-node-recycling behavior documented above (`ytd-popup-container` reuses the same item
+element reference across different targets), just surfacing at a coarser timescale than the
+original stuck-menu bug — the two-`requestAnimationFrame` settle delay reduced the window but
+didn't close it: on a fast repeat activation, the poll could still find the *same* item node it
+had already clicked for the previous target, still bound to that previous target's content, and
+click it again.
+
+Node identity survives a rebind (confirmed live in the original recycling investigation), so
+identity is a usable, world-agnostic signal here: `activateQueueTarget` now tracks the item
+element it last clicked and requires the polled item to be a *different* element before
+accepting it, polling up to the same timeout. A first-ever activation is unaffected (nothing to
+compare against yet, so it resolves immediately as before). If the timeout passes without the
+node ever changing — e.g. the same target activated twice in a row, or a case where YouTube
+genuinely never replaces the node — it falls back to clicking whatever's there, matching the
+pre-existing behavior rather than failing outright. Covered by two new unit tests in
+`tests/unit/queue-overlay.test.js`: one simulating a poll that returns the stale node for a
+couple of ticks before the fresh one appears, one simulating a node that never changes at all.

@@ -96,18 +96,25 @@ still held (`Ctrl+A`, keep Ctrl, `o` works).
   Polish), so position is the only usable signal. This is a documented `ponytail:` ceiling in
   the source: if YouTube ever reorders the menu, this breaks, and the e2e suite below is what
   would catch it.
-  - **Two-frame settle delay + re-entrancy guard**: YouTube recycles the same popup DOM nodes
-    across different trigger clicks instead of creating fresh ones (confirmed live — clicking a
-    second trigger while a popup is open reuses the exact same item element reference). That
-    means "an item node exists in the DOM" is true even for a popup that's mid-transition to a
-    *different* target, so reading it on the very next tick after a trigger click can act on
-    stale content — this was the root cause of a reported double-add/stuck-open-menu bug.
-    `activateQueueTarget` now (a) waits two `requestAnimationFrame` ticks after the trigger
-    click before it starts polling, to give YouTube's render cycle a chance to settle, and (b)
-    ignores a second activation call while one is already in flight, so a fast repeated
-    shortcut press can't race itself. (YouTube's own `opened` state on the popup is a plain JS
-    instance property set by page code in the main world — not visible to an extension content
-    script's isolated world — so that couldn't be used as a readiness signal instead.)
+  - **Two-frame settle delay + re-entrancy guard + fresh-item wait**: YouTube recycles the same
+    popup DOM nodes across different trigger clicks instead of creating fresh ones (confirmed
+    live — clicking a second trigger while a popup is open reuses the exact same item element
+    reference). That means "an item node exists in the DOM" is true even for a popup that's
+    mid-transition to a *different* target, so reading it on the very next tick after a trigger
+    click can act on stale content — this was the root cause of a reported double-add/
+    stuck-open-menu bug. `activateQueueTarget` (a) waits two `requestAnimationFrame` ticks after
+    the trigger click before it starts polling, to give YouTube's render cycle a chance to
+    settle, (b) ignores a second activation call while one is already in flight, so a fast
+    repeated shortcut press can't race itself, and (c) requires the polled item to differ from
+    the item it clicked on the *previous* activation before accepting it, polling (with the same
+    timeout) until that happens — the two-frame delay alone narrowed but didn't close the race:
+    a fast repeat activation (add video A, then shortly after add video B) could still find and
+    re-click the same stale node still bound to A, silently double-adding A instead of adding B.
+    Falls back to clicking whatever's there once the timeout passes, so a target that's
+    legitimately activated twice in a row (or a case where YouTube never swaps the node) still
+    resolves instead of failing outright. (YouTube's own `opened` state on the popup is a plain
+    JS instance property set by page code in the main world — not visible to an extension
+    content script's isolated world — so that couldn't be used as a readiness signal instead.)
 - On success, a green confirmation badge ("Added to queue") appears near the target's rect and
   fades out after ~1.4 s, reusing the jump overlay's `BADGE_STYLE`.
 

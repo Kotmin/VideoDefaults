@@ -137,6 +137,48 @@ describe('activateQueueTarget', () => {
     assert.equal(menuItem.clicked, 1);
   });
 
+  it('waits for a fresh item instead of re-clicking the one just activated', async () => {
+    const triggerA = makeEl();
+    const triggerB = makeEl();
+    const itemA = makeEl();
+    const itemB = makeEl();
+    const okA = await activateQueueTarget(triggerA, { querySelector: () => itemA }, win);
+    assert.equal(okA, true);
+
+    let polls = 0;
+    const docB = {
+      querySelector: () => {
+        polls += 1;
+        return polls < 3 ? itemA : itemB;
+      },
+    };
+    const okB = await activateQueueTarget(triggerB, docB, win);
+    assert.equal(okB, true);
+    assert.equal(itemA.clicked, 1);
+    assert.equal(itemB.clicked, 1);
+  });
+
+  it('falls back to the same item if it never changes before the timeout', async () => {
+    const triggerA = makeEl();
+    const triggerB = makeEl();
+    const item = makeEl();
+    const doc = { querySelector: () => item };
+    const okA = await activateQueueTarget(triggerA, doc, win);
+    assert.equal(okA, true);
+
+    let now = 0;
+    const fastWin = { ...win, setTimeout: (fn) => { now += 50; fn(); } };
+    const realNow = Date.now;
+    Date.now = () => now;
+    try {
+      const okB = await activateQueueTarget(triggerB, doc, fastWin);
+      assert.equal(okB, true);
+    } finally {
+      Date.now = realNow;
+    }
+    assert.equal(item.clicked, 2);
+  });
+
   it('force-hovers an unstamped legacy card before clicking its button', async () => {
     const button = makeEl();
     const card = makeLegacyCard({}, button);

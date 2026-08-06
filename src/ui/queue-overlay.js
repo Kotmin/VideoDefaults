@@ -48,26 +48,36 @@ export function collectQueueTargets(doc, win) {
   return collectVisibleTargets(doc, win, [...populated, ...unstampedLegacyCards]);
 }
 
-function waitForFirstMenuItem(doc, win) {
+// ponytail: the two-frame settle delay below narrowed but didn't close the recycling race —
+// on a fast repeat activation the poll can still find the *same* node we clicked last time,
+// still bound to the previous target, and re-click it (reported as a double-add: video A
+// added twice instead of A then B). Node identity survives a rebind (confirmed live), so
+// requiring the polled item to differ from the one we ourselves clicked last is a real
+// content signal, not a timing guess: it keeps polling until YouTube actually swaps in a
+// fresh (or freshly rebound) node, up to the same timeout. First-ever activation is
+// unaffected (lastActivatedItem starts null, so any found item passes immediately). If the
+// deadline passes without a change (e.g. the same target activated twice in a row, or a case
+// where YouTube genuinely never replaces the node), falls back to whatever's there — no worse
+// than the pre-fix behavior.
+let lastActivatedItem = null;
+
+function waitForFreshMenuItem(doc, win) {
   return new Promise((resolve) => {
     const deadline = Date.now() + MENU_WAIT_TIMEOUT_MS;
     (function poll() {
       const item = doc.querySelector(QUEUE_MENU_ITEM_SELECTOR);
-      if (item) return resolve(item);
-      if (Date.now() >= deadline) return resolve(null);
+      if (item && item !== lastActivatedItem) return resolve(item);
+      if (Date.now() >= deadline) return resolve(item || null);
       win.setTimeout(poll, MENU_WAIT_POLL_MS);
     }());
   });
 }
 
-// ponytail: YouTube's popup container recycles the same item nodes across targets
-// (confirmed live) instead of creating fresh ones, so a menu item can already exist
-// in the DOM for the *previous* target the instant we click a new trigger — reading
-// it on the very next tick can act on stale content. A content script also can't read
-// YouTube's own internal "opened" state (it's a plain JS instance property set by
-// page code in the main world, invisible from the extension's isolated world; tried
-// and confirmed unusable). Instead, give YouTube's render cycle two animation frames
-// to settle before polling — cheap, world-agnostic, and covers the observed race.
+// ponytail: gives YouTube's render cycle two animation frames to start settling before
+// polling begins — cheap and world-agnostic (a content script can't read YouTube's own
+// "opened" state; it's a JS instance property set in the main world, invisible from the
+// isolated world; tried and confirmed unusable). waitForFreshMenuItem above is what
+// actually closes the recycling race this alone couldn't.
 function nextFrame(win) {
   return new Promise((resolve) => win.requestAnimationFrame(() => win.requestAnimationFrame(resolve)));
 }
@@ -99,9 +109,10 @@ export async function activateQueueTarget(triggerButton, doc, win) {
     }
     button.click();
     await nextFrame(win);
-    const item = await waitForFirstMenuItem(doc, win);
+    const item = await waitForFreshMenuItem(doc, win);
     if (!item) return false;
     item.click();
+    lastActivatedItem = item;
     return true;
   } finally {
     activationInFlight = false;

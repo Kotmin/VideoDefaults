@@ -46,12 +46,24 @@ still held (`Ctrl+A`, keep Ctrl, `o` works).
   badge styling, same row-major ordering, same `Backspace`/`Esc` behavior. Any future change
   to jump overlay's display (badge style, label alphabet, sort order) applies to the queue
   overlay automatically since both call the same shared functions.
-- Targets: every visible video card's ⋮ ("more actions") trigger button, matched by the
-  structural class `.ytLockupMetadataViewModelMenuButton button` — not by the button's
-  `aria-label` text, which is translated (confirmed English "More actions" / Polish "Więcej
-  działań"). Covers home feed, search results (Shorts shelf), channel grids, playlists, and
-  the watch-page "Up next" sidebar — all of which render this newer `yt-lockup-view-model`
-  component. The legacy `ytd-video-renderer` used only by non-Shorts search results is not
+- Targets: every visible video card's ⋮ ("more actions") trigger button, matched by two
+  structural classes joined in one selector — not by the button's `aria-label` text, which
+  is translated (confirmed English "More actions" / Polish "Więcej działań"):
+  - `.ytLockupMetadataViewModelMenuButton button` — the `yt-lockup-view-model` component used
+    by the home feed, channel grids, playlists, and the watch-page "Up next" sidebar.
+  - `.shortsLockupViewModelHostOutsideMetadataMenu button` — the separate
+    `ytm-shorts-lockup-view-model` component used by Shorts shelves (confirmed live in the
+    watch-page sidebar; the two components render structurally different wrapper markup
+    around an identically-styled trigger button, so a shared selector misses Shorts entirely).
+    This was a real production gap (Shorts silently uncovered) until confirmed and fixed via
+    live DOM inspection — see `docs/probes/add-to-queue-dom-findings.md` for the original
+    research and its correction note.
+  Sponsored/paid-partnership videos badged "Sponsored" inside a regular `yt-lockup-view-model`
+  card are already covered by the first selector (same component, just a badge). A genuine ad
+  slot (not a partnership-badged organic video) was not reproducible live in the sessions that
+  built this feature — YouTube ad units typically don't expose "Add to queue" at all, but this
+  is unconfirmed; revisit with a captured DOM snapshot if one is found not to work.
+  The legacy `ytd-video-renderer` used only by non-Shorts search results is not
   covered in v1 (its menu button renders lazily on hover with a structurally different path);
   revisit if that gap is reported (`docs/probes/add-to-queue-dom-findings.md`).
 - Activation (`activateQueueTarget` in `src/ui/queue-overlay.js`): click the matched trigger

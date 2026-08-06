@@ -57,9 +57,10 @@ See `docs/release/cws-api-contract-findings.md` for the full verified contract a
 ## Notes
 
 - Chrome (unlike Firefox) does not require a `browser_specific_settings`/manifest `key` field for CI builds — `apps/chrome-extension/manifest.json` has none today, so there's nothing to strip before upload. If one is ever added for a stable dev-build id, it must be removed before the zip is uploaded (the Store assigns/owns the real key).
-- Edge Add-ons (Partner Center API) is a separate, simpler auth flow (`ApiKey` + `X-ClientID` header, no OAuth) — out of scope for this doc; see issue #6 item 4 when Edge publishing is greenlit.
+- Edge Add-ons (Partner Center API) has its own setup doc — see `docs/release/edge-developer-setup.md`.
 
 ## Related Documents
 
 - `docs/release/chrome-local-load.md` — test the exact packaged zip locally before it ever reaches this pipeline.
 - `docs/release/amo-developer-setup.md` — the Firefox/AMO equivalent this mirrors.
+- `docs/release/edge-developer-setup.md` — the Edge/Partner Center equivalent that mirrors this doc.

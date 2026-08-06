@@ -15,12 +15,15 @@ explicit message; a settings change from another window/tab is stored but not
 applied until next navigation. Re-applying live could yank speed mid-video.
 **Default:** keep current behavior (store only, apply on next video).
 
-## Q3 — Chrome/Edge distribution targets
+## Q3 — Chrome/Edge distribution targets — RESOLVED 2026-08-06
 
-Multi-browser restructure builds three loadable extension dirs. Do you want
-Chrome Web Store / Edge Add-ons publishing pipelines (needs store accounts +
-secrets), or just buildable/sideloadable packages for now?
-**Default:** buildable packages + docs; no store CI until you provide credentials.
+Chrome pipeline landed earlier (`release-chrome.yml`, CWS API v2). K directed
+Edge CI directly (2026-08-06), which doubles as the go/no-go answer to issue
+#6 item 4. `release-edge.yml` now exists (Partner Center Submission API
+v1.1), plus `docs/release/edge-developer-setup.md` and
+`docs/release/edge-api-contract-findings.md`. Still blocked on K creating the
+actual Partner Center account/credentials and the first manual listing — see
+the new questions filed for that in this doc.
 
 ## Q4 — prefix key on macOS
 

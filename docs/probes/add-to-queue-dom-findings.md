@@ -175,3 +175,17 @@ picked up automatically from the environment this time, no cookie trick needed).
 dictionary) — it's been confirmed in 2 locales across 2 independent sessions and this repo's existing
 e2e suite will catch a regression immediately if YouTube ever reorders the menu. Documented as a
 `ponytail:` ceiling in code.
+
+## Correction: Shorts trigger button was never actually covered
+
+The table above and the "Two rendering systems" section correctly identify Shorts as rendering via
+`ytm-shorts-lockup-view-model`, a component distinct from `yt-lockup-view-model` — but the trigger
+selector that shipped (`.ytLockupMetadataViewModelMenuButton button`) only matches
+`yt-lockup-view-model`'s wrapper markup. Shorts' trigger button is styled identically and shares the
+same `aria-label`/button classes, but sits inside a different wrapper:
+`.shortsLockupViewModelHostOutsideMetadataMenu`. Since the two components were (incorrectly) treated
+as interchangeable when the selector was written, Shorts cards were silently excluded from the queue
+overlay in production — reported by a user, reproduced and confirmed live (watch-page "Up next"
+sidebar, real youtube.com, 2026-08-06). Fixed by adding the Shorts wrapper class as a second branch of
+the trigger selector in `src/ui/queue-overlay.js`; the popup/activation logic needed no change since
+Shorts' "Add to queue" is item 0 in its (shorter, 2-item) menu, same as everywhere else.

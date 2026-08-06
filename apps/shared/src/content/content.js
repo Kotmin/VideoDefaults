@@ -18,6 +18,8 @@
     } = await import(browser.runtime.getURL('lib/core/keyboard-shortcuts.js'));
     const { collectJumpTargets, createJumpOverlay } =
       await import(browser.runtime.getURL('lib/ui/jump-overlay.js'));
+    const { collectQueueTargets, activateQueueTarget, showQueueConfirmation } =
+      await import(browser.runtime.getURL('lib/ui/queue-overlay.js'));
 
     const isMac = isMacPlatform(navigator);
     let settings = null;
@@ -129,7 +131,16 @@
         const labels = generateLabels(targets.length);
         const pairs = targets.map((t, i) => ({ label: labels[i], element: t.element, rect: t.rect }));
         overlay.open(pairs);
-        labelState = { pairs, typed: '' };
+        labelState = { pairs, typed: '', mode: 'jump' };
+      }
+
+      function openQueueOverlay() {
+        const targets = collectQueueTargets(document, window);
+        if (targets.length === 0) return;
+        const labels = generateLabels(targets.length);
+        const pairs = targets.map((t, i) => ({ label: labels[i], element: t.element, rect: t.rect }));
+        overlay.open(pairs);
+        labelState = { pairs, typed: '', mode: 'queue' };
       }
 
       function handleLabelKey(e) {
@@ -145,9 +156,16 @@
         const typed = labelState.typed + e.key;
         const { remaining, exact } = filterLabelPairs(labelState.pairs, typed);
         if (exact) {
-          const el = exact.element;
+          const { element: el, rect } = exact;
+          const { mode } = labelState;
           closeOverlay();
-          activateTarget(el);
+          if (mode === 'queue') {
+            activateQueueTarget(el, document, window).then((ok) => {
+              if (ok) showQueueConfirmation(document, rect);
+            });
+          } else {
+            activateTarget(el);
+          }
           return;
         }
         if (remaining.length === 0) { closeOverlay(); return; }
@@ -178,6 +196,7 @@
         if (result.pending) pendingTimer = setTimeout(() => controller.cancel(), 2000);
         if (result.command === COMMANDS.GO_HOME) goHome();
         if (result.command === COMMANDS.SHOW_JUMP_LABELS) openOverlay();
+        if (result.command === COMMANDS.SHOW_QUEUE_LABELS) openQueueOverlay();
         if (result.command in SPEED_SHORTCUTS) setDefaultSpeedFromShortcut(SPEED_SHORTCUTS[result.command]);
         if (result.command === COMMANDS.TOGGLE_AUTO_APPLY) toggleAutoApply();
       }, true);

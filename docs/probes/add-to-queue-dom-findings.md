@@ -236,3 +236,36 @@ Shorts' "Add to queue" is item 0 in its (shorter, 2-item) menu, same as everywhe
     animation-frame-delay approach avoids both problems since `requestAnimationFrame` is a
     platform primitive with no cross-world visibility issue and doesn't depend on reading any
     YouTube-internal state at all.
+
+## Follow-up: search-results page had zero queue coverage (trigger-selector gap, not just hover)
+
+A user reported the queue overlay producing **no response at all** on
+`https://www.youtube.com/results?search_query=...` in both real Firefox and Chrome — even after
+manually hovering a card so its `#menu button` was confirmed on-screen and populated. That ruled
+out hover-gating as the (sole) explanation: `QUEUE_TRIGGER_SELECTOR` never had a legacy-shape
+branch at all, so `collectQueueTargets` couldn't find a legacy button even once it existed. Fixed
+in two parts:
+
+- **Definite fix**: added `ytd-video-renderer #menu button` as a third branch of
+  `QUEUE_TRIGGER_SELECTOR`. Covers any legacy card whose button has already stamped in (real user
+  hover, or — as this segment's `TC-18` Firefox e2e case demonstrates — simply having a populated
+  fixture button, no hover simulation needed). Verified: Chrome smoke test's fixture gained a
+  pre-populated legacy card and the queue-label count went from 2 to 3; unit tests cover the
+  merge/dedupe logic in `collectQueueTargets`.
+- **Best-effort fix (unverified, shipped per explicit user request)**: `collectQueueTargets` also
+  collects `ytd-video-renderer` cards whose `#menu button` has *not* stamped in yet as fallback
+  targets, and `activateQueueTarget` dispatches a synthetic hover-event sequence
+  (`pointerover`/`pointerenter`/`mouseover`/`mouseenter`) at activation time, waits 300ms, then
+  looks for the button. This exact mechanism (synthetic `dispatchEvent`-based hover) was already
+  shown to fail against live YouTube in this doc's earlier sessions, and real CDP-level
+  `page.mouse.move()` against this same card additionally **hung indefinitely (120s+, twice)** in
+  a follow-up attempt — so this part could not be verified here at all. It ships because the user
+  explicitly chose "ship it, I'll test it" over leaving the case entirely uncovered; needs
+  real-browser confirmation before being considered actually fixed.
+- **Live confirmation of the definite fix's real-world impact**: added `TC-18` to the Firefox e2e
+  suite, navigating to the exact reported URL
+  (`https://www.youtube.com/results?search_query=king+baldwin`). It found 4 real
+  `ytd-video-renderer` cards and the queue overlay rendered 6 labels for them — before this fix,
+  that page produced 0 queue labels since none of the pre-existing selector branches matched
+  anything there. `TC-18` deliberately does not attempt to click through a label, since that would
+  exercise the unverified hover-forcing path described above.

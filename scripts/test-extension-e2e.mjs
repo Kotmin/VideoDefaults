@@ -422,6 +422,34 @@ async function main() {
     }
   } catch (e) { log('TC-17', false, e.message.slice(0, 80)); }
 
+  // TC-18: queue-label overlay on a legacy search-results page (`ytd-video-renderer`
+  // cards). Only asserts labels render — activation would require forcing YouTube's
+  // hover-gated trigger button to stamp in, which this repo's automated harnesses
+  // cannot reliably do (see docs/probes/add-to-queue-dom-findings.md); that part is
+  // best-effort and needs real-browser confirmation, not automated coverage.
+  process.stderr.write('\nTC-18: queue-label overlay on search-results page\n');
+  try {
+    con = await navigate(rdp, con, 'https://www.youtube.com/results?search_query=king+baldwin');
+    await sleep(5000);
+    con = await refreshActor(rdp, con, 'https://www.youtube.com/results?search_query=king+baldwin');
+    let cardCount = 0;
+    for (let i = 0; i < 10 && cardCount === 0; i++) {
+      cardCount = await rdp.evaluate(con,
+        `document.querySelectorAll('ytd-video-renderer').length`).catch(() => 0);
+      if (cardCount === 0) await sleep(1000);
+    }
+    process.stderr.write(`    ytd-video-renderer cards = ${cardCount}\n`);
+    await rdp.evaluate(con, `
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', ctrlKey: true, bubbles: true }));
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'p', bubbles: true }));
+    `);
+    await sleep(500);
+    const queueLabelCount = await rdp.evaluate(con,
+      `document.querySelectorAll('[data-videodefaults-overlay] span').length`);
+    process.stderr.write(`    queue labels = ${queueLabelCount}\n`);
+    log('TC-18', cardCount === 0 || queueLabelCount > 0, `cards=${cardCount}, labels=${queueLabelCount}`);
+  } catch (e) { log('TC-18', false, e.message.slice(0, 80)); }
+
   // TC-12: no external network from extension (architecture check)
   log('TC-12', true, 'extension makes no external requests (content-script only, no fetch/XHR)');
 

@@ -8,14 +8,26 @@ import { collectVisibleTargets, BADGE_STYLE } from './jump-overlay.js';
 const QUEUE_TRIGGER_SELECTOR = [
   '.ytLockupMetadataViewModelMenuButton button',
   '.shortsLockupViewModelHostOutsideMetadataMenu button',
+  // Legacy search-result cards, once their button has already stamped in from a real hover.
+  'ytd-video-renderer #menu button',
 ].join(', ');
+// ponytail: legacy `ytd-video-renderer` search-result cards render their "..." trigger button
+// lazily, only into `#menu`, on genuine mouse hover — confirmed as universal YouTube behavior
+// (reported by the user in real, non-automated Firefox/Chrome), not automation-specific. A card
+// whose button hasn't stamped yet is collected as a fallback target so it still gets a label;
+// activateQueueTarget forces a synthetic hover sequence on it before looking for the button.
+// That hover-forcing is best-effort and UNVERIFIED here: synthetic dispatchEvent and even real
+// CDP mouse movement both failed/hung against this exact card in this repo's test harness (see
+// docs/probes/add-to-queue-dom-findings.md), so it may simply not work — needs real-browser
+// confirmation.
+const LEGACY_CARD_SELECTOR = 'ytd-video-renderer';
+const LEGACY_CARD_BUTTON_SELECTOR = '#menu button';
+const LEGACY_HOVER_SETTLE_MS = 300;
 // ponytail: legacy search-result cards (`ytd-video-renderer`) open a Polymer popup shaped
 // differently from the view-model system's — items are `ytd-menu-service-item-renderer`
 // under `#items`, not `yt-list-item-view-model[role="menuitem"]`. Confirmed via a real XPath
-// captured from a live browser (the trigger button itself is hover-gated and unreachable
-// from this repo's automated test harnesses, so this branch is evidence-backed but not
-// live-clickthrough-tested end to end — see docs/probes/add-to-queue-dom-findings.md).
-// Position 0 is "Add to queue" here too, same as the view-model shape.
+// captured from a live browser. Position 0 is "Add to queue" here too, same as the
+// view-model shape.
 const QUEUE_MENU_ITEM_SELECTOR = [
   'ytd-popup-container yt-list-item-view-model[role="menuitem"]',
   'ytd-popup-container ytd-menu-service-item-renderer',
@@ -25,8 +37,15 @@ const MENU_WAIT_POLL_MS = 50;
 const CONFIRMATION_DURATION_MS = 1400;
 const CONFIRMATION_FADE_MS = 300;
 
+function isLegacyCard(el) {
+  return el.tagName === 'YTD-VIDEO-RENDERER';
+}
+
 export function collectQueueTargets(doc, win) {
-  return collectVisibleTargets(doc, win, QUEUE_TRIGGER_SELECTOR);
+  const populated = [...doc.querySelectorAll(QUEUE_TRIGGER_SELECTOR)];
+  const unstampedLegacyCards = [...doc.querySelectorAll(LEGACY_CARD_SELECTOR)]
+    .filter((card) => !card.querySelector(LEGACY_CARD_BUTTON_SELECTOR));
+  return collectVisibleTargets(doc, win, [...populated, ...unstampedLegacyCards]);
 }
 
 function waitForFirstMenuItem(doc, win) {
@@ -55,6 +74,15 @@ function nextFrame(win) {
 
 let activationInFlight = false;
 
+function forceLegacyHover(card, win) {
+  return new Promise((resolve) => {
+    for (const type of ['pointerover', 'pointerenter', 'mouseover', 'mouseenter']) {
+      card.dispatchEvent(new win.MouseEvent(type, { bubbles: true, cancelable: true, view: win }));
+    }
+    win.setTimeout(resolve, LEGACY_HOVER_SETTLE_MS);
+  });
+}
+
 // ponytail: YouTube exposes no locale- or icon-based marker for "Add to queue" in the
 // popup DOM (verified empty icon spans across two independent live sessions, EN + PL) —
 // only its consistent first-item position. Upgrade to a real marker if YouTube ever adds
@@ -63,7 +91,13 @@ export async function activateQueueTarget(triggerButton, doc, win) {
   if (activationInFlight) return false;
   activationInFlight = true;
   try {
-    triggerButton.click();
+    let button = triggerButton;
+    if (isLegacyCard(triggerButton)) {
+      await forceLegacyHover(triggerButton, win);
+      button = triggerButton.querySelector(LEGACY_CARD_BUTTON_SELECTOR);
+      if (!button) return false;
+    }
+    button.click();
     await nextFrame(win);
     const item = await waitForFirstMenuItem(doc, win);
     if (!item) return false;

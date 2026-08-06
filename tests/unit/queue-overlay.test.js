@@ -18,7 +18,12 @@ function makeDoc(els) {
   return { querySelectorAll: () => els };
 }
 
-const win = { innerWidth: 1000, innerHeight: 800, setTimeout: (fn) => fn() };
+const win = {
+  innerWidth: 1000,
+  innerHeight: 800,
+  setTimeout: (fn) => fn(),
+  requestAnimationFrame: (fn) => fn(),
+};
 
 describe('collectQueueTargets', () => {
   it('keeps visible trigger buttons with their rects', () => {
@@ -35,22 +40,29 @@ describe('collectQueueTargets', () => {
 });
 
 describe('activateQueueTarget', () => {
-  it('clicks the trigger, waits for the first menu item, and clicks it', async () => {
+  it('clicks the trigger, waits a frame, then clicks the first menu item', async () => {
     const trigger = makeEl();
     const menuItem = makeEl();
     let queried = false;
+    let frames = 0;
     const doc = {
       querySelector: (sel) => {
-        assert.equal(sel, 'ytd-popup-container yt-list-item-view-model[role="menuitem"]');
+        assert.equal(
+          sel,
+          'ytd-popup-container yt-list-item-view-model[role="menuitem"], '
+          + 'ytd-popup-container ytd-menu-service-item-renderer',
+        );
         queried = true;
         return menuItem;
       },
     };
-    const ok = await activateQueueTarget(trigger, doc, win);
+    const frameWin = { ...win, requestAnimationFrame: (fn) => { frames += 1; fn(); } };
+    const ok = await activateQueueTarget(trigger, doc, frameWin);
     assert.equal(ok, true);
     assert.equal(trigger.clicked, 1);
     assert.equal(menuItem.clicked, 1);
     assert.equal(queried, true);
+    assert.equal(frames, 2);
   });
 
   it('resolves false when no menu item appears before the timeout', async () => {
@@ -58,6 +70,7 @@ describe('activateQueueTarget', () => {
     let now = 0;
     const doc = { querySelector: () => null };
     const fastWin = {
+      ...win,
       setTimeout: (fn) => { now += 50; fn(); },
     };
     const realNow = Date.now;
@@ -68,5 +81,31 @@ describe('activateQueueTarget', () => {
     } finally {
       Date.now = realNow;
     }
+  });
+
+  it('ignores a second activation while one is already in flight', async () => {
+    const triggerA = makeEl();
+    const triggerB = makeEl();
+    const menuItem = makeEl();
+    const doc = { querySelector: () => menuItem };
+    let resolveFirstFrame;
+    let calls = 0;
+    const stallingWin = {
+      ...win,
+      requestAnimationFrame: (fn) => {
+        calls += 1;
+        if (calls === 1) { resolveFirstFrame = fn; return; }
+        fn();
+      },
+    };
+    const first = activateQueueTarget(triggerA, doc, stallingWin);
+    const second = await activateQueueTarget(triggerB, doc, win);
+    assert.equal(second, false);
+    assert.equal(triggerB.clicked, 0);
+    assert.equal(menuItem.clicked, 0);
+    resolveFirstFrame();
+    const firstOk = await first;
+    assert.equal(firstOk, true);
+    assert.equal(menuItem.clicked, 1);
   });
 });

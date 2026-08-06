@@ -60,19 +60,43 @@ still held (`Ctrl+A`, keep Ctrl, `o` works).
     research and its correction note.
   Sponsored/paid-partnership videos badged "Sponsored" inside a regular `yt-lockup-view-model`
   card are already covered by the first selector (same component, just a badge). A genuine ad
-  slot (not a partnership-badged organic video) was not reproducible live in the sessions that
-  built this feature — YouTube ad units typically don't expose "Add to queue" at all, but this
-  is unconfirmed; revisit with a captured DOM snapshot if one is found not to work.
-  The legacy `ytd-video-renderer` used only by non-Shorts search results is not
-  covered in v1 (its menu button renders lazily on hover with a structurally different path);
-  revisit if that gap is reported (`docs/probes/add-to-queue-dom-findings.md`).
+  slot (not a partnership-badged organic video) was confirmed live to render via a different
+  button-group wrapper with no "Add to queue" option at all (only an ad-transparency button) —
+  this is native YouTube behavior, not a gap.
+  Live streams/broadcasts use the same `yt-lockup-view-model` component as regular videos
+  (confirmed live, `[LIVE]`-badged card, "Add to queue" still item 0) so no separate handling
+  is needed.
+  The legacy `ytd-video-renderer` used only by non-Shorts search results has its trigger button
+  render lazily on hover, and that hover-triggered stamp could not be forced from any automated
+  test harness tried against this repo (synthetic events, real Playwright `hover()`, mouse-move
+  sequences — all fail identically, most likely `navigator.webdriver`-based suppression). That
+  gap is undiagnosable further from automation and needs a real, non-automated browser session
+  to confirm a fix. The **menu-item** side (what happens once that popup is somehow open) is
+  covered regardless — see below.
 - Activation (`activateQueueTarget` in `src/ui/queue-overlay.js`): click the matched trigger
-  button, poll (50 ms, 1.5 s timeout) for the popup's first `role="menuitem"` to appear under
-  `ytd-popup-container`, then click it. **"Add to queue" is always the first menu item** —
-  YouTube's popup exposes no locale- or icon-based marker to distinguish it (verified empty
-  icon DOM across two independent research sessions, English and Polish), so position is the
-  only usable signal. This is a documented `ponytail:` ceiling in the source: if YouTube ever
-  reorders the menu, this breaks, and the e2e suite below is what would catch it.
+  button, wait two animation frames (see below), then poll (50 ms, 1.5 s timeout) for the
+  popup's first menu item to appear under `ytd-popup-container`, then click it. The item
+  selector matches two shapes: `yt-list-item-view-model[role="menuitem"]` (view-model system)
+  and `ytd-menu-service-item-renderer` (legacy Polymer popup, used by non-Shorts search
+  results — confirmed via a real XPath captured from a live browser session, since the legacy
+  trigger itself is unreachable from automation as noted above). **"Add to queue" is always the
+  first menu item** in both shapes — YouTube's popup exposes no locale- or icon-based marker to
+  distinguish it (verified empty icon DOM across two independent research sessions, English and
+  Polish), so position is the only usable signal. This is a documented `ponytail:` ceiling in
+  the source: if YouTube ever reorders the menu, this breaks, and the e2e suite below is what
+  would catch it.
+  - **Two-frame settle delay + re-entrancy guard**: YouTube recycles the same popup DOM nodes
+    across different trigger clicks instead of creating fresh ones (confirmed live — clicking a
+    second trigger while a popup is open reuses the exact same item element reference). That
+    means "an item node exists in the DOM" is true even for a popup that's mid-transition to a
+    *different* target, so reading it on the very next tick after a trigger click can act on
+    stale content — this was the root cause of a reported double-add/stuck-open-menu bug.
+    `activateQueueTarget` now (a) waits two `requestAnimationFrame` ticks after the trigger
+    click before it starts polling, to give YouTube's render cycle a chance to settle, and (b)
+    ignores a second activation call while one is already in flight, so a fast repeated
+    shortcut press can't race itself. (YouTube's own `opened` state on the popup is a plain JS
+    instance property set by page code in the main world — not visible to an extension content
+    script's isolated world — so that couldn't be used as a readiness signal instead.)
 - On success, a green confirmation badge ("Added to queue") appears near the target's rect and
   fades out after ~1.4 s, reusing the jump overlay's `BADGE_STYLE`.
 

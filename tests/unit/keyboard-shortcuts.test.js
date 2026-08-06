@@ -100,6 +100,10 @@ describe('DEFAULT_KEYMAP', () => {
     assert.equal(DEFAULT_KEYMAP.chords.n, COMMANDS.SET_SPEED_3);
     assert.equal(DEFAULT_KEYMAP.chords.h, COMMANDS.TOGGLE_AUTO_APPLY);
   });
+
+  it('chord p maps to show-queue-labels', () => {
+    assert.equal(DEFAULT_KEYMAP.chords.p, COMMANDS.SHOW_QUEUE_LABELS);
+  });
 });
 
 describe('SPEED_SHORTCUTS', () => {
@@ -156,6 +160,13 @@ describe('createShortcutController', () => {
     c.handleKey(prefix, DEFAULT_KEYMAP);
     const r = c.handleKey(key('o', { ctrlKey: true }), DEFAULT_KEYMAP);
     assert.equal(r.command, COMMANDS.SHOW_JUMP_LABELS);
+  });
+
+  it('prefix then p returns show-queue-labels', () => {
+    const c = createShortcutController();
+    c.handleKey(prefix, DEFAULT_KEYMAP);
+    const r = c.handleKey(key('p'), DEFAULT_KEYMAP);
+    assert.equal(r.command, COMMANDS.SHOW_QUEUE_LABELS);
   });
 
   it('unknown key cancels pending without consuming', () => {

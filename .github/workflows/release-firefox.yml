@@ -14,11 +14,6 @@ on:
       - 'CHANGELOG.md'
       - '.github/workflows/release-firefox.yml'
   workflow_dispatch:
-    inputs:
-      rollback_ref:
-        description: 'Tag to roll back to (e.g. v1.4.2). Leave empty for a normal release.'
-        required: false
-        default: ''
 
 permissions:
   contents: write
@@ -43,33 +38,6 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
-
-      - name: Restrict rollback to repo owner
-        if: ${{ github.event.inputs.rollback_ref != '' && github.actor != 'Kotmin' }}
-        run: |
-          echo "Rollback dispatch is restricted to the repo owner." >&2
-          exit 1
-
-      - name: Restore rollback content
-        if: ${{ github.event.inputs.rollback_ref != '' }}
-        env:
-          ROLLBACK_REF: ${{ github.event.inputs.rollback_ref }}
-        run: git checkout "$ROLLBACK_REF" -- . ':!.github'
-
-      - name: Bump version above latest release
-        if: ${{ github.event.inputs.rollback_ref != '' }}
-        env:
-          ROLLBACK_REF: ${{ github.event.inputs.rollback_ref }}
-        run: |
-          LATEST="$(git tag -l 'v*' | sed 's/^v//' | sort -t. -k1,1n -k2,2n -k3,3n | tail -1)"
-          if [ -z "$LATEST" ]; then
-            echo "no v* tags found, cannot determine next version" >&2
-            exit 1
-          fi
-          NEXT="$(echo "$LATEST" | awk -F. '{print $1"."$2"."$3+1}')"
-          jq --arg v "$NEXT" '.version = $v' apps/firefox-extension/manifest.json > /tmp/manifest.json
-          mv /tmp/manifest.json apps/firefox-extension/manifest.json
-          echo "Rolling back to $ROLLBACK_REF content, publishing as v$NEXT"
 
       - name: Setup Node
         uses: actions/setup-node@v7
@@ -117,7 +85,7 @@ jobs:
 
       - name: Extract changelog section
         id: changelog
-        if: ${{ steps.release_check.outputs.exists == 'false' && github.event.inputs.rollback_ref == '' }}
+        if: ${{ steps.release_check.outputs.exists == 'false' }}
         run: |
           {
             echo "notes<<CHANGELOG_EOF"
@@ -126,16 +94,6 @@ jobs:
               /^## \[/ { flag=0 }
               flag { print }
             ' CHANGELOG.md
-            echo "CHANGELOG_EOF"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Set rollback release notes
-        id: rollback_notes
-        if: ${{ steps.release_check.outputs.exists == 'false' && github.event.inputs.rollback_ref != '' }}
-        run: |
-          {
-            echo "notes<<CHANGELOG_EOF"
-            echo "Rollback republish of ${{ github.event.inputs.rollback_ref }} content, shipped as ${{ steps.version.outputs.tag }}."
             echo "CHANGELOG_EOF"
           } >> "$GITHUB_OUTPUT"
 
@@ -168,7 +126,7 @@ jobs:
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           name: ${{ steps.version.outputs.tag }}
-          body: ${{ steps.changelog.outputs.notes || steps.rollback_notes.outputs.notes }}
+          body: ${{ steps.changelog.outputs.notes }}
           files: |
             dist/*.zip
             dist/*.xpi

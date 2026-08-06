@@ -3,7 +3,6 @@ import { validateSpeed } from './speed.js';
 
 export const COMMANDS = Object.freeze({
   SHOW_JUMP_LABELS: 'show-jump-labels',
-  SHOW_QUEUE_LABELS: 'show-queue-labels',
   GO_HOME: 'go-home',
   SET_SPEED_1: 'set-speed-1',
   SET_SPEED_2: 'set-speed-2',
@@ -24,7 +23,6 @@ const FALLBACK_KEYMAP = Object.freeze({
   prefix: Object.freeze({ key: 'a', ctrl: true, meta: false }),
   chords: Object.freeze({
     o: COMMANDS.SHOW_JUMP_LABELS,
-    p: COMMANDS.SHOW_QUEUE_LABELS,
     y: COMMANDS.GO_HOME,
     v: COMMANDS.SET_SPEED_1,
     b: COMMANDS.SET_SPEED_2,

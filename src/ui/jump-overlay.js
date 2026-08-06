@@ -12,12 +12,9 @@ const TARGET_SELECTOR = [
 
 const ROW_BUCKET_PX = 40;
 
-export function collectVisibleTargets(doc, win, selectorOrElements) {
+export function collectJumpTargets(doc, win) {
   const targets = [];
-  const elements = typeof selectorOrElements === 'string'
-    ? doc.querySelectorAll(selectorOrElements)
-    : selectorOrElements;
-  for (const el of elements) {
+  for (const el of doc.querySelectorAll(TARGET_SELECTOR)) {
     if (el.disabled) continue;
     if (typeof el.closest === 'function' && el.closest('[aria-hidden="true"]')) continue;
     const rect = el.getBoundingClientRect();
@@ -35,11 +32,7 @@ export function collectVisibleTargets(doc, win, selectorOrElements) {
   return targets.slice(0, MAX_JUMP_TARGETS);
 }
 
-export function collectJumpTargets(doc, win) {
-  return collectVisibleTargets(doc, win, TARGET_SELECTOR);
-}
-
-export const BADGE_STYLE = [
+const BADGE_STYLE = [
   'position: fixed',
   'z-index: 2147483647',
   'background: #111',

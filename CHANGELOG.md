@@ -7,17 +7,6 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
-## [0.2.0] - 2026-08-06
-
-### Added
-- Queue overlay: `Ctrl+A p` labels every video with an "Add to queue" option (feed, channel, playlist, Up next sidebar, Shorts, and search-result cards) and adds the selected one to the queue via the labeled shortcut, with a confirmation badge.
-- Edge Add-ons publish pipeline (manual-only bootstrap zip plus CI publish workflow), currently paused pending Partner Center credentials.
-- Manual rollback dispatch for the Chrome and Firefox release pipelines — republish a previous known-good tag under a new version when a live release needs replacing.
-
-### Fixed
-- Queue overlay now covers Shorts and legacy (`ytd-video-renderer`) search-result cards, which previously had no "Add to queue" trigger at all or silently failed to render one.
-- A popup render/activation race that could re-click a stale, recycled menu item on a fast repeat "add to queue", double-adding the previous video instead of the new one.
-
 ## [0.1.1] - 2026-08-03
 
 ### Added

@@ -189,3 +189,50 @@ overlay in production — reported by a user, reproduced and confirmed live (wat
 sidebar, real youtube.com, 2026-08-06). Fixed by adding the Shorts wrapper class as a second branch of
 the trigger selector in `src/ui/queue-overlay.js`; the popup/activation logic needed no change since
 Shorts' "Add to queue" is item 0 in its (shorter, 2-item) menu, same as everywhere else.
+
+## Follow-up session (2026-08-06): ads, legacy menu items, live streams, double-add/stuck-menu
+
+- **Genuine ad slots confirmed to have no queue option.** `ytd-in-feed-ad-layout-renderer` >
+  `ytd-ad-slot-renderer` renders via `yt-lockup-view-model` but with a different button-group
+  wrapper (`video-display-compact-button-group-layout-view-model`, not
+  `.ytLockupMetadataViewModelMenuButton`) and only exposes an "Ad Center" (ad-transparency)
+  button — no "more actions"/queue menu at all. Native YouTube behavior, not a gap.
+- **Live streams confirmed structurally covered.** A `[LIVE]`-badged card uses the same
+  `yt-lockup-view-model` component as a regular video, with "Add to queue" as item 0 of the same
+  4-item menu. No separate handling needed; the existing trigger/menu-item selectors already
+  cover it.
+- **Legacy `ytd-video-renderer` menu-item shape confirmed via user-supplied live XPath**:
+  `//*[@id="items"]/ytd-menu-service-item-renderer[1]/tp-yt-paper-item/div/yt-formatted-string`.
+  Item element is `ytd-menu-service-item-renderer` (not `yt-list-item-view-model`), "Add to
+  queue" still position 0. Added as a second branch of `QUEUE_MENU_ITEM_SELECTOR` in
+  `src/ui/queue-overlay.js`. The trigger-button side of this popup is still unreachable from
+  automation (see the "Two rendering systems" section above and the repeated hover-stamping
+  failures below) — this change is evidence-backed but only the menu-item half could be
+  verified; the trigger half needs a real (non-automated) browser session.
+- **Repeated confirmation the legacy hover-gated trigger can't be forced from automation**: a
+  4th independent attempt (Playwright MCP, `browser_hover` with `:nth-of-type(1)` to dodge a
+  strict-mode violation) timed out waiting for "visible and stable" despite the element's own
+  `getBoundingClientRect()` confirming it was on-screen. Consistent with every prior attempt in
+  this doc — treated as a confirmed environment ceiling, not re-attempted further.
+- **Double-add / stuck-open-menu root cause**: `ytd-popup-container`'s popup DOM nodes are
+  *recycled* across different triggers — clicking a second trigger while a popup is open reuses
+  the exact same item element object (confirmed via reference equality, `===`, across two
+  back-to-back trigger clicks). This means the old `activateQueueTarget` implementation's
+  "resolve as soon as `querySelector` finds any menu item" could resolve instantly against a
+  popup that still belonged to (or was mid-transition from) a different, previously-clicked
+  target, and click before YouTube had rebound the item to the new target. Fixed by adding a
+  two-`requestAnimationFrame` settle delay after the trigger click, before polling begins, plus
+  a simple in-flight guard so a second `activateQueueTarget` call can't overlap a first.
+  - A candidate fix of checking YouTube's own `tp-yt-iron-dropdown.opened` JS property (or its
+    computed `display`) as a readiness signal was tried and discarded: `.opened` is a plain JS
+    instance property set by Polymer/page code running in the page's *main world*, and is
+    invisible to an extension content script's *isolated world* even though both worlds see the
+    same underlying DOM node — confirmed by instrumenting the actual built extension against a
+    static fixture (`opened` read back as `undefined` from the content script despite being set
+    to `true` by the fixture's own inline script). Checking `getComputedStyle(...).display`
+    instead was also tried and produced inconsistent/contradictory readings across repeated live
+    probes (`display: none` in one capture, `display: block` for both open and closed states in
+    a later one on the same page) — not reliable enough to build a fix on. The
+    animation-frame-delay approach avoids both problems since `requestAnimationFrame` is a
+    platform primitive with no cross-world visibility issue and doesn't depend on reading any
+    YouTube-internal state at all.

@@ -9,7 +9,17 @@ const QUEUE_TRIGGER_SELECTOR = [
   '.ytLockupMetadataViewModelMenuButton button',
   '.shortsLockupViewModelHostOutsideMetadataMenu button',
 ].join(', ');
-const QUEUE_MENU_ITEM_SELECTOR = 'ytd-popup-container yt-list-item-view-model[role="menuitem"]';
+// ponytail: legacy search-result cards (`ytd-video-renderer`) open a Polymer popup shaped
+// differently from the view-model system's — items are `ytd-menu-service-item-renderer`
+// under `#items`, not `yt-list-item-view-model[role="menuitem"]`. Confirmed via a real XPath
+// captured from a live browser (the trigger button itself is hover-gated and unreachable
+// from this repo's automated test harnesses, so this branch is evidence-backed but not
+// live-clickthrough-tested end to end — see docs/probes/add-to-queue-dom-findings.md).
+// Position 0 is "Add to queue" here too, same as the view-model shape.
+const QUEUE_MENU_ITEM_SELECTOR = [
+  'ytd-popup-container yt-list-item-view-model[role="menuitem"]',
+  'ytd-popup-container ytd-menu-service-item-renderer',
+].join(', ');
 const MENU_WAIT_TIMEOUT_MS = 1500;
 const MENU_WAIT_POLL_MS = 50;
 const CONFIRMATION_DURATION_MS = 1400;
@@ -31,16 +41,37 @@ function waitForFirstMenuItem(doc, win) {
   });
 }
 
+// ponytail: YouTube's popup container recycles the same item nodes across targets
+// (confirmed live) instead of creating fresh ones, so a menu item can already exist
+// in the DOM for the *previous* target the instant we click a new trigger — reading
+// it on the very next tick can act on stale content. A content script also can't read
+// YouTube's own internal "opened" state (it's a plain JS instance property set by
+// page code in the main world, invisible from the extension's isolated world; tried
+// and confirmed unusable). Instead, give YouTube's render cycle two animation frames
+// to settle before polling — cheap, world-agnostic, and covers the observed race.
+function nextFrame(win) {
+  return new Promise((resolve) => win.requestAnimationFrame(() => win.requestAnimationFrame(resolve)));
+}
+
+let activationInFlight = false;
+
 // ponytail: YouTube exposes no locale- or icon-based marker for "Add to queue" in the
 // popup DOM (verified empty icon spans across two independent live sessions, EN + PL) —
 // only its consistent first-item position. Upgrade to a real marker if YouTube ever adds
 // one, or if the e2e suite (docs/specs/keyboard-shortcuts.md) catches a reorder.
 export async function activateQueueTarget(triggerButton, doc, win) {
-  triggerButton.click();
-  const item = await waitForFirstMenuItem(doc, win);
-  if (!item) return false;
-  item.click();
-  return true;
+  if (activationInFlight) return false;
+  activationInFlight = true;
+  try {
+    triggerButton.click();
+    await nextFrame(win);
+    const item = await waitForFirstMenuItem(doc, win);
+    if (!item) return false;
+    item.click();
+    return true;
+  } finally {
+    activationInFlight = false;
+  }
 }
 
 export function showQueueConfirmation(doc, rect) {

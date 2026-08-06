@@ -1,6 +1,14 @@
 import { collectVisibleTargets, BADGE_STYLE } from './jump-overlay.js';
 
-const QUEUE_TRIGGER_SELECTOR = '.ytLockupMetadataViewModelMenuButton button';
+// ponytail: Shorts lockups use a different wrapper class for the same "more actions"
+// button (shared aria-label/class on the button itself, but that class is also reused
+// by like/dislike/share buttons elsewhere, so matching on the wrapper stays specific).
+// Sponsored (paid-promotion-badged) videos reuse the regular yt-lockup-view-model
+// component and are already covered by the first selector.
+const QUEUE_TRIGGER_SELECTOR = [
+  '.ytLockupMetadataViewModelMenuButton button',
+  '.shortsLockupViewModelHostOutsideMetadataMenu button',
+].join(', ');
 const QUEUE_MENU_ITEM_SELECTOR = 'ytd-popup-container yt-list-item-view-model[role="menuitem"]';
 const MENU_WAIT_TIMEOUT_MS = 1500;
 const MENU_WAIT_POLL_MS = 50;

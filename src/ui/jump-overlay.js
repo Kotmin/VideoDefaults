@@ -12,9 +12,12 @@ const TARGET_SELECTOR = [
 
 const ROW_BUCKET_PX = 40;
 
-export function collectVisibleTargets(doc, win, selector) {
+export function collectVisibleTargets(doc, win, selectorOrElements) {
   const targets = [];
-  for (const el of doc.querySelectorAll(selector)) {
+  const elements = typeof selectorOrElements === 'string'
+    ? doc.querySelectorAll(selectorOrElements)
+    : selectorOrElements;
+  for (const el of elements) {
     if (el.disabled) continue;
     if (typeof el.closest === 'function' && el.closest('[aria-hidden="true"]')) continue;
     const rect = el.getBoundingClientRect();

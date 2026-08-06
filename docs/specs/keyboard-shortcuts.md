@@ -67,12 +67,23 @@ still held (`Ctrl+A`, keep Ctrl, `o` works).
   (confirmed live, `[LIVE]`-badged card, "Add to queue" still item 0) so no separate handling
   is needed.
   The legacy `ytd-video-renderer` used only by non-Shorts search results has its trigger button
-  render lazily on hover, and that hover-triggered stamp could not be forced from any automated
-  test harness tried against this repo (synthetic events, real Playwright `hover()`, mouse-move
-  sequences — all fail identically, most likely `navigator.webdriver`-based suppression). That
-  gap is undiagnosable further from automation and needs a real, non-automated browser session
-  to confirm a fix. The **menu-item** side (what happens once that popup is somehow open) is
-  covered regardless — see below.
+  render lazily, into `#menu`, only on genuine mouse hover — confirmed as universal YouTube
+  behavior (reported by a user in real, non-automated Firefox/Chrome), not automation-specific.
+  Two things cover it:
+  - `ytd-video-renderer #menu button` — a fourth trigger-selector branch that matches once the
+    button has stamped in (real hover, or any other cause). This is the definite fix for the
+    originally-reported "no response at all on search results" bug: the selector previously had
+    *no* legacy branch, so even a fully-populated button was never found. Confirmed live via the
+    Firefox e2e suite's `TC-18` against the exact reported search URL.
+  - A card whose button hasn't stamped yet is still collected as a fallback target (see
+    `collectQueueTargets` in `src/ui/queue-overlay.js`); on activation, a synthetic hover-event
+    sequence is dispatched at the card before looking for the button. This part is best-effort and
+    **unverified** — the same synthetic-hover approach, and even real CDP-level mouse movement,
+    failed/hung against this exact card in every automated attempt tried (see
+    `docs/probes/add-to-queue-dom-findings.md`) — so it may not actually work; needs real-browser
+    confirmation.
+  The **menu-item** side (what happens once that popup is somehow open) is covered regardless —
+  see below.
 - Activation (`activateQueueTarget` in `src/ui/queue-overlay.js`): click the matched trigger
   button, wait two animation frames (see below), then poll (50 ms, 1.5 s timeout) for the
   popup's first menu item to appear under `ytd-popup-container`, then click it. The item
@@ -170,4 +181,7 @@ No options UI yet — edit via storage or wait for the options page
   (TC-15, TC-16, TC-17) dispatches the same chords over the Firefox RDP console actor
   and asserts overlay render/close, home navigation, and — for the queue overlay,
   on a watch page's "Up next" sidebar — label render, activation, and the
-  confirmation badge in real Firefox.
+  confirmation badge in real Firefox. `TC-18` covers the queue overlay on a real
+  search-results page (legacy `ytd-video-renderer` cards), asserting labels render for
+  them — it does not attempt activation, since that path's hover-forcing is unverified
+  (see above).

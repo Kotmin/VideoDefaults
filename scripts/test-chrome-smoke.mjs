@@ -80,7 +80,9 @@ async function main() {
   const queueLabelCount = await page.evaluate(
     () => document.querySelectorAll('[data-videodefaults-overlay] span').length,
   );
-  if (queueLabelCount < 2) throw new Error(`expected >=2 queue labels (regular + Shorts), got ${queueLabelCount}`);
+  if (queueLabelCount < 3) {
+    throw new Error(`expected >=3 queue labels (regular + Shorts + legacy), got ${queueLabelCount}`);
+  }
   const firstQueueLabel = await page.evaluate(
     () => document.querySelector('[data-videodefaults-overlay] span').textContent,
   );

@@ -2,20 +2,34 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { collectQueueTargets, activateQueueTarget } from '../../src/ui/queue-overlay.js';
 
-function makeEl({ top = 0, left = 0, width = 20, height = 20, disabled = false } = {}) {
+function makeEl({
+  top = 0, left = 0, width = 20, height = 20, disabled = false, tagName = 'BUTTON',
+} = {}) {
   return {
+    tagName,
     disabled,
     closest: () => null,
     clicked: 0,
+    dispatched: [],
     getBoundingClientRect: () => ({
       top, left, width, height, bottom: top + height, right: left + width,
     }),
     click() { this.clicked += 1; },
+    dispatchEvent(evt) { this.dispatched.push(evt.type); },
+    querySelector: () => null,
   };
 }
 
-function makeDoc(els) {
-  return { querySelectorAll: () => els };
+function makeLegacyCard(props, button = null) {
+  const card = makeEl({ ...props, tagName: 'YTD-VIDEO-RENDERER' });
+  card.querySelector = (sel) => (sel === '#menu button' ? button : null);
+  return card;
+}
+
+function makeDoc(triggerEls, legacyCardEls = []) {
+  return {
+    querySelectorAll: (sel) => (sel === 'ytd-video-renderer' ? legacyCardEls : triggerEls),
+  };
 }
 
 const win = {
@@ -36,6 +50,20 @@ describe('collectQueueTargets', () => {
   it('excludes disabled and offscreen buttons', () => {
     const els = [makeEl({ disabled: true }), makeEl({ top: 900 })];
     assert.equal(collectQueueTargets(makeDoc(els), win).length, 0);
+  });
+
+  it('includes an unstamped legacy card as a fallback target', () => {
+    const card = makeLegacyCard({ top: 10, left: 10 });
+    const out = collectQueueTargets(makeDoc([], [card]), win);
+    assert.equal(out.length, 1);
+    assert.equal(out[0].element, card);
+  });
+
+  it('excludes a legacy card whose button has already stamped in', () => {
+    const button = makeEl();
+    const card = makeLegacyCard({ top: 10, left: 10 }, button);
+    const out = collectQueueTargets(makeDoc([], [card]), win);
+    assert.equal(out.length, 0);
   });
 });
 
@@ -107,5 +135,26 @@ describe('activateQueueTarget', () => {
     const firstOk = await first;
     assert.equal(firstOk, true);
     assert.equal(menuItem.clicked, 1);
+  });
+
+  it('force-hovers an unstamped legacy card before clicking its button', async () => {
+    const button = makeEl();
+    const card = makeLegacyCard({}, button);
+    const menuItem = makeEl();
+    const doc = { querySelector: () => menuItem };
+    const hoverWin = { ...win, MouseEvent: function MouseEvent(type) { this.type = type; } };
+    const ok = await activateQueueTarget(card, doc, hoverWin);
+    assert.equal(ok, true);
+    assert.deepEqual(card.dispatched, ['pointerover', 'pointerenter', 'mouseover', 'mouseenter']);
+    assert.equal(button.clicked, 1);
+    assert.equal(menuItem.clicked, 1);
+  });
+
+  it('resolves false when a legacy card never grows a button after hover-forcing', async () => {
+    const card = makeLegacyCard({}, null);
+    const doc = { querySelector: () => null };
+    const hoverWin = { ...win, MouseEvent: function MouseEvent(type) { this.type = type; } };
+    const ok = await activateQueueTarget(card, doc, hoverWin);
+    assert.equal(ok, false);
   });
 });

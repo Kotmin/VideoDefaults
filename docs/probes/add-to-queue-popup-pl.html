@@ -1,0 +1,77 @@
+<!--
+  Captured live via Playwright/Firefox on https://www.youtube.com/@mkbhd/videos?hl=pl
+  (locale forced via document.cookie = "hl=pl; PREF=...&hl=pl" then reload).
+  This is the ytd-popup-container payload after clicking a channel-grid video card's
+  "More actions" (Więcej działań) button. "Add to queue" is item 0: "Dodaj do kolejki".
+  Icon wrapper spans (.yt-icon-shape) are present but empty for every item — no
+  distinguishing background-image/mask-image/class was found on any of them, in
+  English or Polish.
+-->
+<tp-yt-iron-dropdown horizontal-align="auto" vertical-align="top" aria-disabled="false" style="outline: none; display: none; max-width: 400px;" class="style-scope ytd-popup-container" prevent-autonav="true">
+  <div id="contentWrapper" class="style-scope tp-yt-iron-dropdown">
+    <yt-sheet-view-model slot="dropdown-content" tabindex="-1" class="ytSheetViewModelHost ytSheetViewModelContextual" style="outline: none;">
+      <yt-contextual-sheet-layout class="ytContextualSheetLayoutHost">
+        <div class="ytContextualSheetLayoutHeaderContainer"></div>
+        <div class="ytContextualSheetLayoutContentContainer">
+          <yt-list-view-model class="ytListViewModelHost" role="menu">
+            <!-- item 0: Add to queue / Dodaj do kolejki -->
+            <yt-list-item-view-model class="ytListItemViewModelHost" role="menuitem">
+              <div class="ytListItemViewModelLayoutWrapper ytListItemViewModelContainer ytListItemViewModelCompact ytListItemViewModelTappable ytListItemViewModelInPopup ytListItemViewModelNoTrailingText">
+                <div class="ytListItemViewModelMainContainer">
+                  <div aria-hidden="true" class="ytListItemViewModelImageContainer ytListItemViewModelLeading">
+                    <span class="ytIconWrapperHost ytListItemViewModelAccessory ytListItemViewModelImage" role="img" aria-label="" aria-hidden="true" style=""><span class="yt-icon-shape"></span></span>
+                  </div>
+                  <button style="" class="ytButtonOrAnchorHost ytButtonOrAnchorButton ytListItemViewModelButtonOrAnchor ytListItemViewModelTextWrapper">
+                    <div><div class="ytListItemViewModelTitleWrapper"><span class="ytAttributedStringHost ytListItemViewModelTitle ytAttributedStringWhiteSpacePreWrap" role="text">Dodaj do kolejki</span></div></div>
+                  </button>
+                </div>
+              </div>
+            </yt-list-item-view-model>
+            <!-- item 1: Save to playlist / Zapisz na playliście -->
+            <yt-list-item-view-model class="ytListItemViewModelHost" role="menuitem">
+              <div class="ytListItemViewModelLayoutWrapper ytListItemViewModelContainer ytListItemViewModelCompact ytListItemViewModelTappable ytListItemViewModelInPopup ytListItemViewModelNoTrailingText">
+                <div class="ytListItemViewModelMainContainer">
+                  <div aria-hidden="true" class="ytListItemViewModelImageContainer ytListItemViewModelLeading">
+                    <span class="ytIconWrapperHost ytListItemViewModelAccessory ytListItemViewModelImage" role="img" aria-label="" aria-hidden="true" style=""><span class="yt-icon-shape"></span></span>
+                  </div>
+                  <a href="https://accounts.google.com/ServiceLogin?..." rel="nofollow" class="ytButtonOrAnchorHost ytButtonOrAnchorAnchor ytListItemViewModelButtonOrAnchor ytListItemViewModelTextWrapper" aria-haspopup="false" aria-disabled="false">
+                    <div><div class="ytListItemViewModelTitleWrapper"><span class="ytAttributedStringHost ytListItemViewModelTitle ytAttributedStringWhiteSpacePreWrap" role="text">Zapisz na playliście</span></div></div>
+                  </a>
+                </div>
+              </div>
+            </yt-list-item-view-model>
+            <!-- item 2: Download / Pobierz -->
+            <yt-download-list-item-view-model class="ytDownloadListItemViewModelHost">
+              <yt-list-item-view-model class="ytListItemViewModelHost" role="menuitem">
+                <div class="ytListItemViewModelLayoutWrapper ytListItemViewModelContainer ytListItemViewModelCompact ytListItemViewModelTappable ytListItemViewModelInPopup ytListItemViewModelNoTrailingText">
+                  <div class="ytListItemViewModelMainContainer">
+                    <div aria-hidden="true" class="ytListItemViewModelImageContainer ytListItemViewModelLeading">
+                      <span class="ytIconWrapperHost ytListItemViewModelAccessory ytListItemViewModelImage" role="img" aria-label="" aria-hidden="true" style=""><span class="yt-icon-shape"></span></span>
+                    </div>
+                    <button style="" class="ytButtonOrAnchorHost ytButtonOrAnchorButton ytListItemViewModelButtonOrAnchor ytListItemViewModelTextWrapper">
+                      <div><div class="ytListItemViewModelTitleWrapper"><span class="ytAttributedStringHost ytListItemViewModelTitle ytAttributedStringWhiteSpacePreWrap" role="text">Pobierz</span></div></div>
+                    </button>
+                  </div>
+                </div>
+              </yt-list-item-view-model>
+            </yt-download-list-item-view-model>
+            <!-- item 3: Share / Udostępnij -->
+            <yt-list-item-view-model class="ytListItemViewModelHost" role="menuitem">
+              <div class="ytListItemViewModelLayoutWrapper ytListItemViewModelContainer ytListItemViewModelCompact ytListItemViewModelTappable ytListItemViewModelInPopup ytListItemViewModelNoTrailingText">
+                <div class="ytListItemViewModelMainContainer">
+                  <div aria-hidden="true" class="ytListItemViewModelImageContainer ytListItemViewModelLeading">
+                    <span class="ytIconWrapperHost ytListItemViewModelAccessory ytListItemViewModelImage" role="img" aria-label="" aria-hidden="true" style=""><span class="yt-icon-shape"></span></span>
+                  </div>
+                  <button style="" class="ytButtonOrAnchorHost ytButtonOrAnchorButton ytListItemViewModelButtonOrAnchor ytListItemViewModelTextWrapper">
+                    <div><div class="ytListItemViewModelTitleWrapper"><span class="ytAttributedStringHost ytListItemViewModelTitle ytAttributedStringWhiteSpacePreWrap" role="text">Udostępnij</span></div></div>
+                  </button>
+                </div>
+              </div>
+            </yt-list-item-view-model>
+          </yt-list-view-model>
+        </div>
+        <div class="ytContextualSheetLayoutFooterContainer"></div>
+      </yt-contextual-sheet-layout>
+    </yt-sheet-view-model>
+  </div>
+</tp-yt-iron-dropdown>

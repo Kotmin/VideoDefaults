@@ -27,7 +27,13 @@ Edit `src/core/shortcuts.config.json` to change the prefix key, any chord bindin
 
 ## Status
 
-Active development on `dev` branch. Not yet published to AMO.
+Active development on `dev` branch. Also works on Chromium-based browsers.
+
+| Browser | Status | Listing |
+| --- | --- | --- |
+| 🦊 Firefox (AMO) | Published | [addons.mozilla.org/.../videodefaults](https://addons.mozilla.org/en-US/firefox/addon/videodefaults/) |
+| 🌐 Chrome (Web Store) | Published | [chromewebstore.google.com/.../videodefaults](https://chromewebstore.google.com/detail/videodefaults/olbdclkanolgkhfghooecilkhbghadob) |
+| 🟦 Edge (Add-ons) | Not yet submitted | — |
 
 ## Requirements
 

@@ -2,6 +2,7 @@
   "prefix": { "key": "a", "ctrl": true, "meta": false },
   "chords": {
     "o": "show-jump-labels",
+    "p": "show-queue-labels",
     "y": "go-home",
     "v": "set-speed-1",
     "b": "set-speed-2",

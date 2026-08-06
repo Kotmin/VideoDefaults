@@ -68,6 +68,27 @@ async function main() {
   );
   if (!overlayGone) throw new Error('overlay did not close on Escape');
 
+  await page.goto('https://www.youtube.com/watch?v=smoke');
+  await page.waitForFunction(
+    () => document.querySelector('video')?.playbackRate === 2,
+    null,
+    { timeout: 10_000 },
+  );
+  await page.keyboard.press('Control+a');
+  await page.keyboard.press('p');
+  await page.waitForSelector('[data-videodefaults-overlay] span', { timeout: 5000 });
+  const queueLabelCount = await page.evaluate(
+    () => document.querySelectorAll('[data-videodefaults-overlay] span').length,
+  );
+  if (queueLabelCount < 3) {
+    throw new Error(`expected >=3 queue labels (regular + Shorts + legacy), got ${queueLabelCount}`);
+  }
+  const firstQueueLabel = await page.evaluate(
+    () => document.querySelector('[data-videodefaults-overlay] span').textContent,
+  );
+  for (const ch of firstQueueLabel.toLowerCase()) await page.keyboard.press(ch);
+  await page.waitForSelector('[data-videodefaults-queue-confirm]', { timeout: 5000 });
+
   await page.keyboard.press('Control+a');
   await page.keyboard.press('y');
   await page.waitForURL('https://www.youtube.com/', { timeout: 5000 });
@@ -78,7 +99,7 @@ async function main() {
   }
   console.log(JSON.stringify({
     ok: true, playbackRate: rate, defaultPlaybackRate: defaultRate,
-    jumpLabels: labelCount, wentHome: true,
+    jumpLabels: labelCount, queueLabels: queueLabelCount, wentHome: true,
   }));
 }
 

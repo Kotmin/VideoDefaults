@@ -1,18 +1,6 @@
 name: Release Edge
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'apps/edge-extension/**'
-      - 'apps/shared/**'
-      - 'src/**'
-      - 'scripts/**'
-      - 'tools/**'
-      - 'package.json'
-      - 'package-lock.json'
-      - 'CHANGELOG.md'
-      - '.github/workflows/release-edge.yml'
   workflow_dispatch:
 
 permissions:
@@ -24,6 +12,28 @@ permissions:
 # Requires secrets: EDGE_CLIENT_ID, EDGE_API_KEY, EDGE_PRODUCT_ID
 # (set in repo settings, never in code).
 # This workflow must not run on untrusted PR contexts with privileged secrets.
+#
+# PAUSED (2026-08-06): Edge delivery is delayed pending K's Partner Center
+# account. The push-on-main trigger is intentionally removed so this never
+# fires on an ordinary dev->main promotion — restore the block below to
+# re-enable once EDGE_CLIENT_ID/EDGE_API_KEY/EDGE_PRODUCT_ID are set:
+#
+#   push:
+#     branches: [main]
+#     paths:
+#       - 'apps/edge-extension/**'
+#       - 'apps/shared/**'
+#       - 'src/**'
+#       - 'scripts/**'
+#       - 'tools/**'
+#       - 'package.json'
+#       - 'package-lock.json'
+#       - 'CHANGELOG.md'
+#       - '.github/workflows/release-edge.yml'
+#
+# Even before restoring that trigger, the "Check Edge Add-ons credentials"
+# step below keeps workflow_dispatch runs green (publish steps self-skip)
+# until the three secrets actually exist.
 
 concurrency:
   group: release-edge
@@ -92,9 +102,23 @@ jobs:
             echo "CHANGELOG_EOF"
           } >> "$GITHUB_OUTPUT"
 
+      - name: Check Edge Add-ons credentials are configured
+        id: edge_secrets
+        run: |
+          if [ -n "$EDGE_CLIENT_ID" ] && [ -n "$EDGE_API_KEY" ] && [ -n "$EDGE_PRODUCT_ID" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "Edge Add-ons secrets not set yet (see docs/release/edge-developer-setup.md) - skipping publish steps."
+          fi
+        env:
+          EDGE_CLIENT_ID: ${{ secrets.EDGE_CLIENT_ID }}
+          EDGE_API_KEY: ${{ secrets.EDGE_API_KEY }}
+          EDGE_PRODUCT_ID: ${{ secrets.EDGE_PRODUCT_ID }}
+
       - name: Upload package to Edge Add-ons
         id: edge_upload
-        if: ${{ steps.release_check.outputs.exists == 'false' }}
+        if: ${{ steps.release_check.outputs.exists == 'false' && steps.edge_secrets.outputs.configured == 'true' }}
         run: |
           HEADERS_FILE="$(mktemp)"
           HTTP_CODE="$(curl -s -D "$HEADERS_FILE" -o response.json -w '%{http_code}' -X POST \
@@ -122,7 +146,7 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
 
       - name: Wait for package processing
-        if: ${{ steps.release_check.outputs.exists == 'false' }}
+        if: ${{ steps.release_check.outputs.exists == 'false' && steps.edge_secrets.outputs.configured == 'true' }}
         run: |
           OPERATION_ID="${{ steps.edge_upload.outputs.operation_id }}"
           for _ in $(seq 1 30); do
@@ -156,7 +180,7 @@ jobs:
 
       - name: Submit for certification
         id: edge_submit
-        if: ${{ steps.release_check.outputs.exists == 'false' }}
+        if: ${{ steps.release_check.outputs.exists == 'false' && steps.edge_secrets.outputs.configured == 'true' }}
         run: |
           HEADERS_FILE="$(mktemp)"
           NOTES="Automated release ${{ steps.version.outputs.tag }}. See CHANGELOG.md."
@@ -184,7 +208,7 @@ jobs:
           EDGE_PRODUCT_ID: ${{ secrets.EDGE_PRODUCT_ID }}
 
       - name: Wait for submission intake
-        if: ${{ steps.release_check.outputs.exists == 'false' }}
+        if: ${{ steps.release_check.outputs.exists == 'false' && steps.edge_secrets.outputs.configured == 'true' }}
         run: |
           OPERATION_ID="${{ steps.edge_submit.outputs.operation_id }}"
           for _ in $(seq 1 30); do
@@ -217,7 +241,7 @@ jobs:
           EDGE_PRODUCT_ID: ${{ secrets.EDGE_PRODUCT_ID }}
 
       - name: Upload release artifacts
-        if: ${{ steps.release_check.outputs.exists == 'false' }}
+        if: ${{ steps.release_check.outputs.exists == 'false' && steps.edge_secrets.outputs.configured == 'true' }}
         uses: actions/upload-artifact@v7
         with:
           name: videodefaults-${{ steps.version.outputs.tag }}
@@ -226,7 +250,7 @@ jobs:
 
       - name: Create Release
         uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
-        if: ${{ steps.release_check.outputs.exists == 'false' }}
+        if: ${{ steps.release_check.outputs.exists == 'false' && steps.edge_secrets.outputs.configured == 'true' }}
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           name: ${{ steps.version.outputs.tag }}

@@ -27,7 +27,33 @@ const YT_HOME= 'https://www.youtube.com/';
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-process.on('exit', () => { try { globalThis.__vdCleanup?.(); } catch {} });
+// web-ext launches Firefox in a way that does not die with its own process, so
+// killing the web-ext wrapper alone leaves Firefox running — this is why repeated
+// interrupted runs pile up orphaned Firefox windows. `-start-debugger-server` is a
+// flag unique to web-ext's own RDP launch (Playwright MCP's Firefox uses Juggler
+// instead), so matching on it can never catch an unrelated Firefox session.
+function reapStaleFirefox(label = 'stale') {
+  const out = spawnSync('pgrep', ['-f', 'firefox.*-start-debugger-server']).stdout?.toString().trim();
+  if (!out) return;
+  const pids = out.split('\n').filter(Boolean);
+  for (const pid of pids) { try { process.kill(+pid, 'SIGKILL'); } catch {} }
+  process.stderr.write(`  reaped ${pids.length} ${label} Firefox process(es)\n`);
+}
+
+function cleanupAndExit(code) {
+  try { globalThis.__vdCleanup?.(); } catch {}
+  reapStaleFirefox('interrupted-run');
+  process.exit(code);
+}
+// proc.kill() on the web-ext wrapper does not reliably kill the Firefox it
+// launched (web-ext detaches it), so even a normal, uninterrupted completion
+// needs the same sweep — not just the signal-interrupted paths above.
+process.on('exit', () => {
+  try { globalThis.__vdCleanup?.(); } catch {}
+  reapStaleFirefox('leftover');
+});
+process.on('SIGINT', () => cleanupAndExit(130));
+process.on('SIGTERM', () => cleanupAndExit(143));
 
 class FirefoxRDP {
   #sock; #buf = Buffer.alloc(0); #inbox = []; #resolve = null;
@@ -121,6 +147,7 @@ class FirefoxRDP {
 }
 
 async function startWebExt() {
+  reapStaleFirefox();
   // apps/firefox-extension/lib is a gitignored symlink to ../../src; Firefox's
   // addon sandbox refuses to follow symlinks pointing outside the extension
   // directory, and fs.cpSync's dereference:true does not resolve directory

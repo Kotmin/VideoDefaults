@@ -65,3 +65,47 @@ Ship prefix-navigation in Firefox first and port to Chrome/Edge after it
 stabilizes, or land it simultaneously in all three?
 **Default:** shared core + Firefox first, then enable in Chrome/Edge builds
 (they share the same source, so usually free).
+
+---
+
+Dated 2026-08-06. Surfaced while building the Edge Add-ons CI pipeline
+(`release-edge.yml`, `docs/release/edge-developer-setup.md`). Same
+batch-answer convention as above.
+
+## Q9 — who owns the Microsoft Partner Center developer account
+
+Same shape as the CWS question issue #6 already flagged for Google Cloud:
+Partner Center registration is a paid, identity-bound account. Needs K to
+actually create it and mint the `EDGE_CLIENT_ID`/`EDGE_API_KEY` before
+`release-edge.yml` can run for real (it currently has no secrets set, so it
+will just fail closed on first trigger — that's expected, not a bug).
+**Default:** pipeline lands now, dormant until credentials exist. No default
+answer possible here — this is purely K's account/identity action.
+
+## Q10 — certification notes content
+
+`release-edge.yml`'s submit step sends a fixed reviewer note: `"Automated
+release {tag}. See CHANGELOG.md."` CWS/AMO pipelines don't send anything
+equivalent (neither API has a reviewer-notes field). Fine as a permanent
+default, or do you want per-release custom notes (e.g. sourced from the
+changelog excerpt already extracted for the GitHub Release body)?
+**Default:** keep the fixed string; revisit only if a certification reviewer
+asks a clarifying question that a note could have preempted.
+
+## Q11 — issue #6 item 5 (versioning on a needs-changes response) still open
+
+Not resolved by this work — applies equally to Edge now that it has a real
+submission flow. On a needs-changes/rejected submission from any store, do
+we bump the shared version immediately or resubmit the same version after
+fixes? Blocks nothing today (no store has rejected a submission yet), but
+will block the first real rejection if unanswered.
+**Default:** no default; flagging so it isn't lost, resubmit-same-version
+is the naive assumption but unconfirmed against any store's actual policy.
+
+## Q12 — Opera / Safari go/no-go
+
+Filed as issue #12 per your direction, scoping-only like #6 was for
+Chrome/Edge. Needs your go/no-go per browser before any research or
+implementation starts (Opera is cheap to explore, Safari is a materially
+different pipeline — macOS runner, paid Apple account, Xcode project).
+**Default:** no work started on either until you answer in that issue.

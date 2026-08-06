@@ -1,0 +1,41 @@
+name: Edge Store Bootstrap Zip
+
+# Temporary, manual-only: produces an Edge-only unsigned zip for the
+# one-time manual first Partner Center listing
+# (docs/release/edge-developer-setup.md step 3). Delete this file once that
+# listing exists — ongoing publishes go through the Edge Add-ons Submission
+# API, not this artifact.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: Package Edge Zip
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dev dependencies
+        run: npm ci
+
+      - name: Package edge-extension only
+        run: |
+          bash scripts/sync-extension-lib.sh
+          bash scripts/package-extension.sh edge-extension
+
+      - name: Upload zip
+        uses: actions/upload-artifact@v7
+        with:
+          name: videodefaults-edge-store-bootstrap
+          path: dist/videodefaults-edge-*.zip
+          retention-days: 7

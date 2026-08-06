@@ -13,6 +13,7 @@ select, or contenteditable — `Ctrl+A` still selects text there.
 | Chord | Command | Effect |
 |---|---|---|
 | `Ctrl+A` then `o` | `show-jump-labels` | Overlay deterministic two-char indexes on clickable elements; type an index to focus+click it |
+| `Ctrl+A` then `p` | `show-queue-labels` | Overlay two-char indexes on every video that has an "Add to queue" option; type an index to open that video's ⋮ menu, click "Add to queue", and confirm with a badge |
 | `Ctrl+A` then `y` | `go-home` | Go to the main YouTube page (clicks the logo; falls back to `homeUrl`) |
 | `Ctrl+A` then `v` | `set-speed-1` | Set playback speed to preset 1's configured value (default `1`); persists as `settings.defaultSpeed` and applies to the active video |
 | `Ctrl+A` then `b` | `set-speed-2` | Same as above for preset 2 (default `1.5`) |
@@ -38,6 +39,31 @@ still held (`Ctrl+A`, keep Ctrl, `o` works).
   prefix closes the overlay. While the overlay is open all keys are captured so
   YouTube shortcuts cannot fire accidentally.
 
+## Queue labels
+
+- Shares the jump overlay's label component (`createJumpOverlay`) and target-collection/
+  sort logic (`collectVisibleTargets` in `src/ui/jump-overlay.js`) — same alphabet, same
+  badge styling, same row-major ordering, same `Backspace`/`Esc` behavior. Any future change
+  to jump overlay's display (badge style, label alphabet, sort order) applies to the queue
+  overlay automatically since both call the same shared functions.
+- Targets: every visible video card's ⋮ ("more actions") trigger button, matched by the
+  structural class `.ytLockupMetadataViewModelMenuButton button` — not by the button's
+  `aria-label` text, which is translated (confirmed English "More actions" / Polish "Więcej
+  działań"). Covers home feed, search results (Shorts shelf), channel grids, playlists, and
+  the watch-page "Up next" sidebar — all of which render this newer `yt-lockup-view-model`
+  component. The legacy `ytd-video-renderer` used only by non-Shorts search results is not
+  covered in v1 (its menu button renders lazily on hover with a structurally different path);
+  revisit if that gap is reported (`docs/probes/add-to-queue-dom-findings.md`).
+- Activation (`activateQueueTarget` in `src/ui/queue-overlay.js`): click the matched trigger
+  button, poll (50 ms, 1.5 s timeout) for the popup's first `role="menuitem"` to appear under
+  `ytd-popup-container`, then click it. **"Add to queue" is always the first menu item** —
+  YouTube's popup exposes no locale- or icon-based marker to distinguish it (verified empty
+  icon DOM across two independent research sessions, English and Polish), so position is the
+  only usable signal. This is a documented `ponytail:` ceiling in the source: if YouTube ever
+  reorders the menu, this breaks, and the e2e suite below is what would catch it.
+- On success, a green confirmation badge ("Added to queue") appears near the target's rect and
+  fades out after ~1.4 s, reusing the jump overlay's `BADGE_STYLE`.
+
 ## Configuration
 
 `DEFAULT_KEYMAP` and the default speed-shortcut values are sourced from the
@@ -51,6 +77,7 @@ shortcut key or a speed value is a one-file edit, no code change needed:
   "prefix": { "key": "a", "ctrl": true, "meta": false },
   "chords": {
     "o": "show-jump-labels",
+    "p": "show-queue-labels",
     "y": "go-home",
     "v": "set-speed-1",
     "b": "set-speed-2",
@@ -77,7 +104,7 @@ the same `normalizeKeymap()` on every read:
 - `chords` maps single keys to known commands; unknown commands are dropped.
   A stored override is merged onto the defaults key-by-key, not swapped in
   wholesale — a partial override (e.g. only remapping `o`) keeps every other
-  default chord (`y`, `v`, `b`, `n`, `h`) working.
+  default chord (`p`, `y`, `v`, `b`, `n`, `h`) working.
 - `homeUrl` must be an `https://*.youtube.com` URL (blocks `javascript:` and
   third-party redirect targets).
 - `speeds` maps each `set-speed-*` command to a numeric value validated by
@@ -100,8 +127,11 @@ No options UI yet — edit via storage or wait for the options page
 ## Verification
 
 - Unit: `tests/unit/keyboard-shortcuts.test.js` (state machine, keymap
-  sanitizing, labels), `tests/unit/jump-overlay.test.js` (target collection).
+  sanitizing, labels), `tests/unit/jump-overlay.test.js` (target collection),
+  `tests/unit/queue-overlay.test.js` (queue target collection, menu-item activation).
 - E2E: `scripts/test-chrome-smoke.mjs` presses the real chords in Chromium and
   asserts overlay render, Escape close, and home navigation. `scripts/test-extension-e2e.mjs`
-  (TC-15, TC-16) dispatches the same chords over the Firefox RDP console actor
-  and asserts overlay render/close and home navigation in real Firefox.
+  (TC-15, TC-16, TC-17) dispatches the same chords over the Firefox RDP console actor
+  and asserts overlay render/close, home navigation, and — for the queue overlay,
+  on a watch page's "Up next" sidebar — label render, activation, and the
+  confirmation badge in real Firefox.

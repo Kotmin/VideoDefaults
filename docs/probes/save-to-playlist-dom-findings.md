@@ -109,10 +109,29 @@ Our own overlay UI can still choose to present create-new as an in-list "+"
 row per K's UX decision (issue #16) — that's a presentational choice in our
 overlay, independent of how the native popup lays it out.
 
-Clicking it was not captured in either session (both fragments show the
-pre-click state only) — a follow-up capture of what appears after clicking
-"Utwórz nową playlistę" (a name-entry field? inline or a second sheet?) is
-still needed before implementing the create-new flow.
+**Post-click capture done (2026-08-07, K).** Clicking it opens a separate
+`<yt-dialog-view-model>` (a real dialog, not another row/sheet inside the
+original `yt-sheet-view-model`):
+
+- Title field: `<textarea>` inside
+  `yt-create-playlist-dialog-form-view-model .ytCreatePlaylistDialogFormViewModelTitleField`
+  — not an `<input>`/`[contenteditable]`, which is why the original selector
+  (`yt-sheet-view-model input, yt-sheet-view-model [contenteditable="true"]`)
+  never matched anything live.
+- Visibility dropdown defaults to "Prywatna" (Private) — matches K's request
+  to keep created playlists private by default; left untouched by the driver.
+- A "Nawiąż współpracę" (collaborate) switch, defaulted off — left untouched.
+- Submit button: `.ytSpecDialogLayoutFooterContainer .ytPanelFooterViewModelPrimaryButton button`
+  (aria-label "Utwórz"/Create), a genuine submit control distinct from the
+  sheet's own footer button — same structural
+  `.ytPanelFooterViewModelPrimaryButton` class pattern, different container.
+  Dispatching an Enter keydown on the textarea does not submit (it's a
+  multi-line field); the driver now clicks this button directly instead.
+- Cancel button: `.ytPanelFooterViewModelButtonRowLeftButton button`
+  (aria-label "Anuluj"), not currently used by the driver.
+
+Selectors updated in `src/ui/playlist-popup-driver.js`
+(`CREATE_NAME_INPUT_SELECTOR`, new `CREATE_DIALOG_SUBMIT_SELECTOR`).
 
 ## No batch "Done"/confirm button
 
@@ -137,8 +156,8 @@ assumption until confirmed by interaction.
 1. ~~A capture with at least one playlist already containing the video~~ —
    **done**, see `save-to-playlist-popup-selected.html` and the resolved
    selected-state signal above.
-2. A capture of the **post-click state of "Utwórz nową playlistę"** (create-new
-   name entry UI) — still needed.
+2. ~~A capture of the **post-click state of "Utwórz nową playlistę"** (create-new
+   name entry UI)~~ — **done**, see the create-dialog section above.
 3. Confirm live (click, not just static capture) that a checkbox toggle
    applies immediately with no separate confirm step — still needed; not
    blocking a first implementation pass, since "toggle applies immediately"

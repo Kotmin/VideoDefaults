@@ -172,18 +172,30 @@ function makeInputElement() {
   };
 }
 
+const OPEN_BUTTON_SELECTOR = '.ytContextualSheetLayoutFooterContainer .ytPanelFooterViewModelPrimaryButton button';
+const NAME_INPUT_SELECTOR = 'yt-create-playlist-dialog-form-view-model textarea';
+const SUBMIT_BUTTON_SELECTOR = '.ytSpecDialogLayoutFooterContainer .ytPanelFooterViewModelPrimaryButton button';
+
 describe('driveCreateNewPlaylist', () => {
-  it('clicks create-new, fills the field, and submits with Enter', async () => {
-    const btn = { clicked: 0, click() { this.clicked += 1; } };
+  it('clicks create-new, fills the title field, and submits via the dialog button', async () => {
+    const openBtn = { clicked: 0, click() { this.clicked += 1; } };
+    const submitBtn = { clicked: 0, click() { this.clicked += 1; } };
     const input = makeInputElement();
-    const doc = { querySelector: (sel) => (sel === '.ytContextualSheetLayoutFooterContainer .ytPanelFooterViewModelPrimaryButton button' ? btn : input) };
+    const doc = {
+      querySelector: (sel) => {
+        if (sel === OPEN_BUTTON_SELECTOR) return openBtn;
+        if (sel === NAME_INPUT_SELECTOR) return input;
+        if (sel === SUBMIT_BUTTON_SELECTOR) return submitBtn;
+        return null;
+      },
+    };
     const ok = await driveCreateNewPlaylist(doc, makeCreateNewWin(), 'New Stuff');
     assert.equal(ok, true);
-    assert.equal(btn.clicked, 1);
+    assert.equal(openBtn.clicked, 1);
     assert.equal(input.value, 'New Stuff');
     assert.equal(input.focused, true);
-    assert.deepEqual(input.dispatched.map((e) => e.type), ['input', 'keydown']);
-    assert.equal(input.dispatched[1].key, 'Enter');
+    assert.deepEqual(input.dispatched.map((e) => e.type), ['input']);
+    assert.equal(submitBtn.clicked, 1);
   });
 
   it('returns false when the create-new button is not found', async () => {
@@ -196,7 +208,7 @@ describe('driveCreateNewPlaylist', () => {
     let calls = 0;
     const doc = {
       querySelector: (sel) => {
-        if (sel === '.ytContextualSheetLayoutFooterContainer .ytPanelFooterViewModelPrimaryButton button') return btn;
+        if (sel === OPEN_BUTTON_SELECTOR) return btn;
         calls += 1;
         return null;
       },
@@ -211,6 +223,19 @@ describe('driveCreateNewPlaylist', () => {
     } finally {
       Date.now = realNow;
     }
+  });
+
+  it('returns false when the submit button is not found', async () => {
+    const openBtn = { clicked: 0, click() { this.clicked += 1; } };
+    const input = makeInputElement();
+    const doc = {
+      querySelector: (sel) => {
+        if (sel === OPEN_BUTTON_SELECTOR) return openBtn;
+        if (sel === NAME_INPUT_SELECTOR) return input;
+        return null;
+      },
+    };
+    assert.equal(await driveCreateNewPlaylist(doc, makeCreateNewWin(), 'New Stuff'), false);
   });
 });
 

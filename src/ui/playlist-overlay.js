@@ -1,4 +1,7 @@
 import { visibleRows } from './playlist-overlay-state.js';
+import { BADGE_STYLE } from './jump-overlay.js';
+
+const PROGRESS_DONE_MS = 1400;
 
 const PANEL_STYLE = [
   'position: fixed',
@@ -82,4 +85,31 @@ export function createPlaylistOverlay(doc) {
       container = null;
     },
   };
+}
+
+// ponytail: module-level singleton badge, same shape as queue-overlay.js's
+// showQueueConfirmation — only one add-sequence runs at a time per tab.
+let progressBadge = null;
+
+export function showPlaylistProgress(doc, rect, current, total) {
+  if (!progressBadge) {
+    progressBadge = doc.createElement('span');
+    progressBadge.setAttribute('data-videodefaults-playlist-progress', '');
+    doc.body.appendChild(progressBadge);
+  }
+  progressBadge.textContent = `Adding ${current}/${total}`;
+  progressBadge.setAttribute('style', BADGE_STYLE
+    + `; top: ${Math.max(0, rect.top)}px; left: ${Math.max(0, rect.left)}px`);
+}
+
+export function finishPlaylistProgress(doc, rect, added, total) {
+  if (!progressBadge) return;
+  const ok = added === total;
+  progressBadge.textContent = `${added}/${total} added`;
+  progressBadge.setAttribute('style', BADGE_STYLE
+    + `; top: ${Math.max(0, rect.top)}px; left: ${Math.max(0, rect.left)}px`
+    + (ok ? '; background: #1a7f37; border-color: #1a7f37; color: #fff' : ''));
+  const badge = progressBadge;
+  progressBadge = null;
+  setTimeout(() => badge.remove(), PROGRESS_DONE_MS);
 }

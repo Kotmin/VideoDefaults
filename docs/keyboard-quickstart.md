@@ -13,6 +13,7 @@ want via the extension's stored settings, same as any other override.
 | `Ctrl+A` | Prefix — arms the next key as a command (default binding, configurable) | Global |
 | `Ctrl+A` then `o` | Open jump overlay (labels clickable elements) | Global |
 | `Ctrl+A` then `p` | Open queue overlay (labels videos with an "Add to queue" option; typing a label adds that video next) | Global |
+| `Ctrl+A` then `Shift+P` | Open playlist picker for the current video (fuzzy-search playlists, checkbox multi-add, create new) — watch page only, requires being logged in | Watch page |
 | `Ctrl+A` then `y` | Go home (click YouTube logo, or navigate to configured home URL) | Global |
 | `Ctrl+A` then `v` | Set playback speed to preset 1 (default `1×`) | Global |
 | `Ctrl+A` then `b` | Set playback speed to preset 2 (default `1.5×`) | Global |
@@ -22,5 +23,10 @@ want via the extension's stored settings, same as any other override.
 | Two-char label (e.g. `AA`) | Filter/select the labelled target; typing the full label activates it | Jump/queue overlay open |
 | `Backspace` | Remove last typed label character | Jump/queue overlay open |
 | `Esc` | Close overlay | Jump/queue overlay open |
+| Type letters | Fuzzy-filter playlists by name | Playlist picker open |
+| `↑`/`↓` | Move highlight (wraps, includes "+ Create new" as the last row) | Playlist picker open |
+| `Space` | Toggle a checkbox on the highlighted playlist (local only, up to 5) | Playlist picker open |
+| `Enter` | Add to checked playlists, or the highlighted one if none checked, or open create-new | Playlist picker open |
+| `Esc` | Close create-new sub-dialog, or the picker if none open | Playlist picker open |
 
 Pending prefix auto-cancels after 2 seconds if no chord key follows.

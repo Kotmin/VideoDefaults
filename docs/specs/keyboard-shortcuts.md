@@ -1,6 +1,8 @@
 # Keyboard Shortcuts — tmux-style prefix navigation
 
-Status: implemented 2026-07-17 (all editions; shared source).
+Status: implemented 2026-07-17 (all editions; shared source). Playlist picker
+(`Ctrl+A, Shift+P`) added 2026-08-07 (issue #16) — see below; blocked on two
+unverified DOM assumptions, see `docs/ai/questions-for-K.md`.
 
 ## Model
 
@@ -14,6 +16,7 @@ select, or contenteditable — `Ctrl+A` still selects text there.
 |---|---|---|
 | `Ctrl+A` then `o` | `show-jump-labels` | Overlay deterministic two-char indexes on clickable elements; type an index to focus+click it |
 | `Ctrl+A` then `p` | `show-queue-labels` | Overlay two-char indexes on every video that has an "Add to queue" option; type an index to open that video's ⋮ menu, click "Add to queue", and confirm with a badge |
+| `Ctrl+A` then `Shift+P` | `show-playlist-labels` | Open a fuzzy-search playlist picker for the current watch-page video; add to one or more playlists, or create a new one |
 | `Ctrl+A` then `y` | `go-home` | Go to the main YouTube page (clicks the logo; falls back to `homeUrl`) |
 | `Ctrl+A` then `v` | `set-speed-1` | Set playback speed to preset 1's configured value (default `1`); persists as `settings.defaultSpeed` and applies to the active video |
 | `Ctrl+A` then `b` | `set-speed-2` | Same as above for preset 2 (default `1.5`) |
@@ -118,6 +121,67 @@ still held (`Ctrl+A`, keep Ctrl, `o` works).
 - On success, a green confirmation badge ("Added to queue") appears near the target's rect and
   fades out after ~1.4 s, reusing the jump overlay's `BADGE_STYLE`.
 
+## Playlist picker
+
+Resolved 2026-08-07 (issue #16). Wired in `apps/shared/src/content/content.js`'s
+`setupKeyboard()`, backed by four new modules:
+
+- `src/core/fuzzy-match.js` — substring match, else Levenshtein distance ≤ 2 on
+  whitespace-stripped, lowercased names (`matchesPlaylistQuery`).
+- `src/ui/playlist-popup-driver.js` — drives YouTube's native "Save to
+  playlist" sheet silently, same off-screen-driving approach as the queue
+  overlay: `openSaveToPlaylistPopup` scrapes rows (`aria-pressed` for
+  selected state, name parsed from `aria-label`'s first comma-segment),
+  `togglePlaylistRow` clicks a row, `driveCreateNewPlaylist` clicks the
+  footer "create new" button and best-effort drives whatever inline field
+  appears (**UNVERIFIED**, see `docs/ai/questions-for-K.md`).
+- `src/core/playlist-cache.js` — `browser.storage.local`-backed catalog cache
+  (name only, 5 min TTL), shared across tabs so repeated opens skip
+  re-scraping the native popup. Deliberately does **not** cache per-video
+  membership (`selected`), since that's video-specific and would be wrong to
+  serve to a different video — the overlay never displays native membership
+  at all, only the local checkbox state the user sets in this session.
+- `src/ui/playlist-overlay-state.js` / `src/ui/playlist-overlay.js` — pure
+  reducer (fully unit tested) + DOM painter (untested at the unit level, same
+  convention as `createJumpOverlay`) for the fuzzy-search list, checkbox
+  multi-select (capped at 5), and the nested create-new sub-dialog.
+
+Behavior:
+
+- Gated to logged-in users (`isLoggedIn` in the YouTube site adapter — **best-effort,
+  unverified**, see below) and to the watch page.
+- Opening: read the playlist cache; on a miss, open the native popup once to
+  scrape it, then close it again — the overlay never leaves the native sheet
+  visibly open.
+- Typing filters by fuzzy match; `↑`/`↓` move the highlight through the
+  filtered list plus an always-present "+ Create new" row; `Space` toggles a
+  local checkbox (max 5); `Enter` adds to the checked set if non-empty, else
+  implicitly single-selects the highlighted row, else (on "+ Create new")
+  opens a nested sub-dialog for typing the new playlist's name.
+- Adding: reopens the native popup once per playlist, sequentially (no native
+  batch-confirm exists), clicking a row only if it isn't already
+  `aria-pressed="true"` — the native button is a toggle, so an unconditional
+  click on an already-saved playlist would remove it instead of leaving it
+  added. A progress badge (`Adding n/total`, reusing jump-overlay's
+  `BADGE_STYLE`) tracks the sequence and settles to a green `n/total added`
+  badge for ~1.4 s.
+- Create-new: on sub-dialog confirm, opens the native popup, drives the
+  best-effort create-new flow, and on success adds the video to the checked
+  playlists plus the new one.
+- Cache is invalidated after any successful add or create.
+
+**Two open, unverified DOM assumptions block this from working against the
+real site today** (both flagged `UNVERIFIED` in source, see
+`docs/ai/questions-for-K.md`):
+
+1. `findSaveToPlaylistTrigger` (YouTube site adapter) is a stub returning
+   `null` — the watch page's native "Save" button was never captured in DOM
+   probes, only the already-open sheet was. Until resolved, the whole feature
+   self-heals to a silent no-op on `Ctrl+A, Shift+P`.
+2. `isLoggedIn` (`#avatar-btn` presence) and the post-create-new inline-field
+   shape in `driveCreateNewPlaylist` are best-effort assumptions, not
+   independently DOM-captured.
+
 ## Configuration
 
 `DEFAULT_KEYMAP` and the default speed-shortcut values are sourced from the
@@ -137,6 +201,9 @@ shortcut key or a speed value is a one-file edit, no code change needed:
     "b": "set-speed-2",
     "n": "set-speed-3",
     "h": "toggle-auto-apply"
+  },
+  "shiftChords": {
+    "p": "show-playlist-labels"
   },
   "homeUrl": "https://www.youtube.com/",
   "speeds": {
@@ -159,6 +226,11 @@ the same `normalizeKeymap()` on every read:
   A stored override is merged onto the defaults key-by-key, not swapped in
   wholesale — a partial override (e.g. only remapping `o`) keeps every other
   default chord (`p`, `y`, `v`, `b`, `n`, `h`) working.
+- `shiftChords` is a separate map, same merge/validation rules as `chords`,
+  looked up only when the chord key is pressed with `Shift` held — pressing
+  `p` with Shift does **not** fall back to the unshifted `chords.p`
+  (`show-queue-labels`) if no `shiftChords.p` entry exists; it's simply
+  unbound.
 - `homeUrl` must be an `https://*.youtube.com` URL (blocks `javascript:` and
   third-party redirect targets).
 - `speeds` maps each `set-speed-*` command to a numeric value validated by
@@ -181,8 +253,12 @@ No options UI yet — edit via storage or wait for the options page
 ## Verification
 
 - Unit: `tests/unit/keyboard-shortcuts.test.js` (state machine, keymap
-  sanitizing, labels), `tests/unit/jump-overlay.test.js` (target collection),
-  `tests/unit/queue-overlay.test.js` (queue target collection, menu-item activation).
+  sanitizing, labels, `shiftChords`), `tests/unit/jump-overlay.test.js`
+  (target collection), `tests/unit/queue-overlay.test.js` (queue target
+  collection, menu-item activation), `tests/unit/fuzzy-match.test.js`,
+  `tests/unit/playlist-popup-driver.test.js`, `tests/unit/playlist-cache.test.js`,
+  `tests/unit/playlist-overlay-state.test.js`, `tests/unit/youtube-site-adapter.test.js`
+  (`isLoggedIn`, `findSaveToPlaylistTrigger` stub).
 - E2E: `scripts/test-chrome-smoke.mjs` presses the real chords in Chromium and
   asserts overlay render, Escape close, and home navigation. `scripts/test-extension-e2e.mjs`
   (TC-15, TC-16, TC-17) dispatches the same chords over the Firefox RDP console actor

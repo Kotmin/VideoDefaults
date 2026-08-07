@@ -109,3 +109,60 @@ Chrome/Edge. Needs your go/no-go per browser before any research or
 implementation starts (Opera is cheap to explore, Safari is a materially
 different pipeline — macOS runner, paid Apple account, Xcode project).
 **Default:** no work started on either until you answer in that issue.
+
+---
+
+Dated 2026-08-07. Surfaced while implementing issue #16 (playlist picker,
+built with your sign-off from this batch). Same convention: default is what
+I proceeded with, code is flagged `UNVERIFIED`/`ponytail:` at each spot.
+
+## Q13 — native "Save to playlist" trigger button on the watch page (BLOCKING)
+
+`docs/probes/save-to-playlist-dom-findings.md` only captured the sheet
+*already open* — never the watch page's own button/menu item that opens it.
+Every other piece of the feature (fuzzy search, popup driving, cache,
+multi-add, create-new) is built and unit-tested, but
+`findSaveToPlaylistTrigger` (`src/site-adapters/youtube/youtube-site-adapter.js`)
+is a stub that always returns `null`, so `Ctrl+A, Shift+P` currently no-ops
+on the live site — nothing breaks, it just does nothing. Needs a real DOM
+capture of the watch page's action row (like/dislike/share/save) the same
+way the existing probes captured the sheet, ideally including how it differs
+(if at all) for Shorts vs. regular watch pages.
+**Default:** stub in place, feature inert until this lands; no guessed
+selector shipped in its place since a wrong one would look confident and
+fail silently in a worse way than an honest no-op.
+
+## Q14 — login detection (`isLoggedIn`)
+
+`isLoggedIn` checks for `#avatar-btn` in the masthead (present when signed
+in; signed-out shows a "Sign in" link instead) — a reasonable, structurally-
+grounded guess, but never independently confirmed against a captured
+signed-out DOM.
+**Default:** ship as best-effort; if wrong, the picker either never opens
+for a logged-in user (safe, just annoying) or attempts to open for a
+signed-out one and then fails harmlessly at the trigger-button stub (Q13)
+either way, so the failure mode is safe regardless.
+
+## Q15 — create-new post-click UI shape
+
+Per your "best-effort, ponytail-flagged" answer: `driveCreateNewPlaylist`
+(`src/ui/playlist-popup-driver.js`) assumes clicking the footer "create new"
+button reveals an inline text input/contenteditable inside the same sheet,
+and submits by setting its value and dispatching an `Enter` keydown. This
+was never captured — could be a separate dialog, a different submit
+mechanism (dedicated button vs. Enter), or something else entirely.
+**Default:** shipped as described; self-heals to a no-op (returns `false`,
+overlay state left untouched) if no field appears within 1.5 s. Needs
+verification during real-browser testing, same as Q13.
+
+## Q16 — playlist identity when names collide
+
+The picker keys playlists by name (no stable DOM id exists on the row —
+only the `aria-label` text). Two playlists with the same name (YouTube
+allows this) would be indistinguishable to fuzzy search, checkbox state, and
+the add sequence (`rows.find((r) => r.name === name)` would always resolve
+to whichever matches first).
+**Default:** accepted as a known limitation, not fixed — no id-bearing DOM
+signal was found in probes to key on instead. Flag if this turns out to
+matter in practice (e.g. your account actually has duplicate-named
+playlists).

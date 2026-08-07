@@ -2,6 +2,7 @@ import { visibleRows } from './playlist-overlay-state.js';
 import { BADGE_STYLE } from './jump-overlay.js';
 
 const PROGRESS_DONE_MS = 1400;
+const NOT_LOGGED_IN_DURATION_MS = 1400;
 
 const PANEL_STYLE = [
   'position: fixed',
@@ -100,6 +101,16 @@ export function showPlaylistProgress(doc, rect, current, total) {
   progressBadge.textContent = `Adding ${current}/${total}`;
   progressBadge.setAttribute('style', BADGE_STYLE
     + `; top: ${Math.max(0, rect.top)}px; left: ${Math.max(0, rect.left)}px`);
+}
+
+export function showNotLoggedInBadge(doc, rect) {
+  const badge = doc.createElement('span');
+  badge.setAttribute('data-videodefaults-playlist-not-logged-in', '');
+  badge.textContent = 'Sign in to save to a playlist';
+  badge.setAttribute('style', BADGE_STYLE
+    + `; top: ${Math.max(0, rect.top)}px; left: ${Math.max(0, rect.left)}px`);
+  doc.body.appendChild(badge);
+  setTimeout(() => badge.remove(), NOT_LOGGED_IN_DURATION_MS);
 }
 
 export function finishPlaylistProgress(doc, rect, added, total) {

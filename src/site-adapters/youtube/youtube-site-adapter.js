@@ -31,14 +31,18 @@ export function isLoggedIn(document) {
   return document.querySelector('#avatar-btn') !== null;
 }
 
-// UNVERIFIED STUB: the watch page's native "Save to playlist" trigger button
-// was never captured in DOM probes (only the already-open sheet was — see
-// docs/probes/save-to-playlist-dom-findings.md). Returns null until a real
-// capture resolves this, so the playlist overlay self-heals to a silent
-// no-op rather than driving a fabricated selector. See
-// docs/ai/questions-for-K.md (blocking item).
+// Captured 2026-08-07 via a live watch-page DOM probe (logged-out session):
+// the Save button is the only `#flexible-item-buttons` child wrapped in
+// `<yt-button-view-model>` — Download uses a different wrapper
+// (`ytd-download-button-renderer`), Share lives under
+// `#top-level-buttons-computed` instead. See
+// docs/probes/save-trigger-dom-findings.md.
+// ponytail: assumes Save is the sole yt-button-view-model-wrapped button in
+// #flexible-item-buttons — untested against a logged-in session or Shorts
+// layout, where another button (e.g. Clip) might share that wrapper.
+// Self-heals to a missed trigger (openPlaylistOverlay no-ops) if wrong.
 export function findSaveToPlaylistTrigger(document) {
-  return null;
+  return document.querySelector('#flexible-item-buttons > yt-button-view-model button[aria-label]');
 }
 
 export function createYouTubeSiteAdapter(document, window) {

@@ -104,8 +104,16 @@ describe('isLoggedIn', () => {
 });
 
 describe('findSaveToPlaylistTrigger', () => {
-  it('returns null (unverified stub pending a real DOM capture)', () => {
-    const doc = { querySelector: () => ({}) };
+  const SAVE_SELECTOR = '#flexible-item-buttons > yt-button-view-model button[aria-label]';
+
+  it('returns the button matching the Save wrapper selector', () => {
+    const btn = {};
+    const doc = { querySelector: (sel) => (sel === SAVE_SELECTOR ? btn : null) };
+    assert.equal(findSaveToPlaylistTrigger(doc), btn);
+  });
+
+  it('returns null when the Save wrapper is absent', () => {
+    const doc = { querySelector: () => null };
     assert.equal(findSaveToPlaylistTrigger(doc), null);
   });
 });

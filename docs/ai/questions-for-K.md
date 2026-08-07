@@ -116,21 +116,17 @@ Dated 2026-08-07. Surfaced while implementing issue #16 (playlist picker,
 built with your sign-off from this batch). Same convention: default is what
 I proceeded with, code is flagged `UNVERIFIED`/`ponytail:` at each spot.
 
-## Q13 — native "Save to playlist" trigger button on the watch page (BLOCKING)
+## Q13 — native "Save to playlist" trigger button on the watch page (RESOLVED 2026-08-07)
 
-`docs/probes/save-to-playlist-dom-findings.md` only captured the sheet
-*already open* — never the watch page's own button/menu item that opens it.
-Every other piece of the feature (fuzzy search, popup driving, cache,
-multi-add, create-new) is built and unit-tested, but
-`findSaveToPlaylistTrigger` (`src/site-adapters/youtube/youtube-site-adapter.js`)
-is a stub that always returns `null`, so `Ctrl+A, Shift+P` currently no-ops
-on the live site — nothing breaks, it just does nothing. Needs a real DOM
-capture of the watch page's action row (like/dislike/share/save) the same
-way the existing probes captured the sheet, ideally including how it differs
-(if at all) for Shorts vs. regular watch pages.
-**Default:** stub in place, feature inert until this lands; no guessed
-selector shipped in its place since a wrong one would look confident and
-fail silently in a worse way than an honest no-op.
+Live DOM probe (headless Firefox, logged out) found the trigger:
+`#flexible-item-buttons > yt-button-view-model button[aria-label]` — Save is
+the sole `yt-button-view-model`-wrapped child of `#flexible-item-buttons`;
+Download uses a different wrapper. `findSaveToPlaylistTrigger` now returns
+this instead of the `null` stub, so `Ctrl+A, Shift+P` is live. Details and
+remaining gaps (untested logged-in session, untested Shorts layout — a
+"Clip" button there might share the same wrapper and break the "sole child"
+assumption) in `docs/probes/save-trigger-dom-findings.md`. Flag if this
+turns out wrong in real use.
 
 ## Q14 — login detection (`isLoggedIn`)
 

@@ -18,6 +18,12 @@ const CREATE_NAME_INPUT_SELECTOR = 'yt-create-playlist-dialog-form-view-model te
 // (ytSpecDialogLayoutFooterContainer, the dialog's own footer) rather than
 // aria-label text, which is locale-specific.
 const CREATE_DIALOG_SUBMIT_SELECTOR = '.ytSpecDialogLayoutFooterContainer .ytPanelFooterViewModelPrimaryButton button';
+// The dialog's own Cancel ("Anuluj") button, same footer, opposite side.
+// Reported live: an Escape keydown (as used for the sheet) does not close
+// this dialog either — clicking its real Cancel affordance is used instead,
+// consistent with the sheet's own lesson that a genuine button click is more
+// reliable than a synthetic key event.
+const CREATE_DIALOG_CANCEL_SELECTOR = '.ytSpecDialogLayoutFooterContainer .ytPanelFooterViewModelButtonRowLeftButton button';
 const SHEET_SELECTOR = 'yt-sheet-view-model[slot="dropdown-content"]';
 const POPUP_WAIT_TIMEOUT_MS = 1500;
 const POPUP_WAIT_POLL_MS = 50;
@@ -150,10 +156,12 @@ function waitForCreateDialogClosed(doc, win) {
 // to Private, which is the plugin's intended default (K, 2026-08-07).
 // Reported live: the dialog can also stay open after a successful submit
 // (creation is async), same shape as the sheet's own unreliable close — so
-// it's verified the same way, falling back to Escape rather than trusting
-// the click closed it. Self-healing: resolves false without throwing if the
-// field or submit button never appear, so the caller can leave the overlay
-// state untouched on failure.
+// it's verified the same way. First fallback attempt (Escape, same as the
+// sheet) was reported live as still not closing it — replaced with clicking
+// the dialog's own Cancel button (CREATE_DIALOG_CANCEL_SELECTOR), a real UI
+// affordance rather than a synthetic key event. Self-healing: resolves false
+// without throwing if the field or submit button never appear, so the
+// caller can leave the overlay state untouched on failure.
 export async function driveCreateNewPlaylist(doc, win, name) {
   if (!activateCreateNew(doc)) return false;
   const input = await waitForCreateInput(doc, win);
@@ -165,7 +173,7 @@ export async function driveCreateNewPlaylist(doc, win, name) {
   if (!submit) return false;
   submit.click();
   if (!(await waitForCreateDialogClosed(doc, win))) {
-    doc.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    doc.querySelector(CREATE_DIALOG_CANCEL_SELECTOR)?.click();
   }
   return true;
 }

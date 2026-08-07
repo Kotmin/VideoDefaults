@@ -128,10 +128,14 @@ original `yt-sheet-view-model`):
   Dispatching an Enter keydown on the textarea does not submit (it's a
   multi-line field); the driver now clicks this button directly instead.
 - Cancel button: `.ytPanelFooterViewModelButtonRowLeftButton button`
-  (aria-label "Anuluj"), not currently used by the driver.
+  (aria-label "Anuluj"). Used as the close fallback when the dialog doesn't
+  disappear on its own after submit — an Escape keydown, unreliable for the
+  save-to-playlist sheet too, was tried first and reported live as not
+  closing this dialog either.
 
 Selectors updated in `src/ui/playlist-popup-driver.js`
-(`CREATE_NAME_INPUT_SELECTOR`, new `CREATE_DIALOG_SUBMIT_SELECTOR`).
+(`CREATE_NAME_INPUT_SELECTOR`, new `CREATE_DIALOG_SUBMIT_SELECTOR`,
+`CREATE_DIALOG_CANCEL_SELECTOR`).
 
 ## No batch "Done"/confirm button
 

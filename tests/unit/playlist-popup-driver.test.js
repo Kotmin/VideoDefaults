@@ -175,6 +175,7 @@ function makeInputElement() {
 const OPEN_BUTTON_SELECTOR = '.ytContextualSheetLayoutFooterContainer .ytPanelFooterViewModelPrimaryButton button';
 const NAME_INPUT_SELECTOR = 'yt-create-playlist-dialog-form-view-model textarea';
 const SUBMIT_BUTTON_SELECTOR = '.ytSpecDialogLayoutFooterContainer .ytPanelFooterViewModelPrimaryButton button';
+const CANCEL_BUTTON_SELECTOR = '.ytSpecDialogLayoutFooterContainer .ytPanelFooterViewModelButtonRowLeftButton button';
 
 describe('driveCreateNewPlaylist', () => {
   it('clicks create-new, fills the title field, submits, and confirms the dialog closed', async () => {
@@ -189,7 +190,7 @@ describe('driveCreateNewPlaylist', () => {
         if (sel === SUBMIT_BUTTON_SELECTOR) return submitBtn;
         return null;
       },
-      dispatchEvent: () => { throw new Error('should not dispatch Escape when the dialog closed on its own'); },
+      dispatchEvent: () => { throw new Error('should not dispatch any event when the dialog closed on its own'); },
     };
     const ok = await driveCreateNewPlaylist(doc, makeCreateNewWin(), 'New Stuff');
     assert.equal(ok, true);
@@ -200,19 +201,19 @@ describe('driveCreateNewPlaylist', () => {
     assert.equal(submitBtn.clicked, 1);
   });
 
-  it('falls back to Escape when the dialog does not close after submitting', async () => {
+  it('falls back to clicking the Cancel button when the dialog does not close after submitting', async () => {
     const openBtn = { clicked: 0, click() { this.clicked += 1; } };
     const submitBtn = { clicked: 0, click() { this.clicked += 1; } };
+    const cancelBtn = { clicked: 0, click() { this.clicked += 1; } };
     const input = makeInputElement();
-    const dispatched = [];
     const doc = {
       querySelector: (sel) => {
         if (sel === OPEN_BUTTON_SELECTOR) return openBtn;
         if (sel === NAME_INPUT_SELECTOR) return input;
         if (sel === SUBMIT_BUTTON_SELECTOR) return submitBtn;
+        if (sel === CANCEL_BUTTON_SELECTOR) return cancelBtn;
         return null;
       },
-      dispatchEvent: (evt) => dispatched.push(evt),
     };
     let now = 0;
     const realNow = Date.now;
@@ -224,7 +225,7 @@ describe('driveCreateNewPlaylist', () => {
     } finally {
       Date.now = realNow;
     }
-    assert.deepEqual(dispatched.map((e) => e.key), ['Escape']);
+    assert.equal(cancelBtn.clicked, 1);
   });
 
   it('returns false when the create-new button is not found', async () => {

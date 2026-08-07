@@ -5,12 +5,14 @@ import {
   DEFAULT_KEYMAP,
   MAX_JUMP_TARGETS,
   SPEED_SHORTCUTS,
+  PLAYLIST_KEYS,
   createShortcutController,
   eventMatchesPrefix,
   filterLabelPairs,
   generateLabels,
   normalizeKeymap,
   normalizeSpeedShortcuts,
+  normalizePlaylistKeys,
 } from '../../src/core/keyboard-shortcuts.js';
 
 function key(k, extra = {}) {
@@ -146,6 +148,31 @@ describe('normalizeSpeedShortcuts', () => {
     assert.equal(result[COMMANDS.SET_SPEED_1], SPEED_SHORTCUTS[COMMANDS.SET_SPEED_1]);
     assert.equal(result[COMMANDS.SET_SPEED_2], SPEED_SHORTCUTS[COMMANDS.SET_SPEED_2]);
     assert.equal(result[COMMANDS.SET_SPEED_3], 1.75);
+  });
+});
+
+describe('PLAYLIST_KEYS', () => {
+  it('has the expected defaults from shortcuts.config.json', () => {
+    assert.deepEqual(PLAYLIST_KEYS, { toggle: ' ', check: 'ArrowRight', uncheck: 'ArrowLeft' });
+  });
+});
+
+describe('normalizePlaylistKeys', () => {
+  it('falls back to defaults for garbage input', () => {
+    assert.deepEqual(normalizePlaylistKeys(null), PLAYLIST_KEYS);
+    assert.deepEqual(normalizePlaylistKeys('nope'), PLAYLIST_KEYS);
+  });
+
+  it('falls back per-action for empty or non-string entries', () => {
+    const result = normalizePlaylistKeys({ toggle: '', check: 42, uncheck: 'ArrowLeft' });
+    assert.equal(result.toggle, PLAYLIST_KEYS.toggle);
+    assert.equal(result.check, PLAYLIST_KEYS.check);
+    assert.equal(result.uncheck, 'ArrowLeft');
+  });
+
+  it('accepts a full override', () => {
+    const result = normalizePlaylistKeys({ toggle: 'x', check: 'Enter', uncheck: 'Backspace' });
+    assert.deepEqual(result, { toggle: 'x', check: 'Enter', uncheck: 'Backspace' });
   });
 });
 

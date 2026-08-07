@@ -115,6 +115,23 @@ export function normalizeSpeedShortcuts(raw) {
 
 export const SPEED_SHORTCUTS = normalizeSpeedShortcuts(shortcutsConfig.speeds);
 
+const FALLBACK_PLAYLIST_KEYS = Object.freeze({
+  toggle: ' ',
+  check: 'ArrowRight',
+  uncheck: 'ArrowLeft',
+});
+
+export function normalizePlaylistKeys(raw) {
+  const src = raw != null && typeof raw === 'object' ? raw : {};
+  const out = {};
+  for (const [action, fallback] of Object.entries(FALLBACK_PLAYLIST_KEYS)) {
+    out[action] = typeof src[action] === 'string' && src[action].length > 0 ? src[action] : fallback;
+  }
+  return Object.freeze(out);
+}
+
+export const PLAYLIST_KEYS = normalizePlaylistKeys(shortcutsConfig.playlistKeys);
+
 export function eventMatchesPrefix(evt, prefix) {
   return typeof evt.key === 'string'
     && evt.key.toLowerCase() === prefix.key

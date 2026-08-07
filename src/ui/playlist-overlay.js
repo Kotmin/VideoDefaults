@@ -34,12 +34,15 @@ function renderMain(doc, container, state) {
   container.appendChild(query);
 
   const rows = visibleRows(state);
+  let highlighted = null;
   rows.forEach((row, i) => {
     const el = doc.createElement('div');
-    el.setAttribute('style', i === state.highlightIndex ? ROW_HIGHLIGHT_STYLE : ROW_STYLE);
+    const isHighlighted = i === state.highlightIndex;
+    el.setAttribute('style', isHighlighted ? ROW_HIGHLIGHT_STYLE : ROW_STYLE);
     el.setAttribute('data-videodefaults-playlist-row', row.name);
     el.textContent = `${state.checked.has(row.name) ? '[x]' : '[ ]'} ${row.name}`;
     container.appendChild(el);
+    if (isHighlighted) highlighted = el;
   });
 
   const createRow = doc.createElement('div');
@@ -48,6 +51,12 @@ function renderMain(doc, container, state) {
   createRow.setAttribute('data-videodefaults-playlist-create-new', '');
   createRow.textContent = '+ Create new';
   container.appendChild(createRow);
+  if (createHighlighted) highlighted = createRow;
+
+  // Container scrolls (PANEL_STYLE's max-height/overflow-y) once the list
+  // outgrows the panel — 'nearest' follows the highlight with the smallest
+  // possible scroll instead of re-centering the list on every move.
+  highlighted?.scrollIntoView?.({ block: 'nearest' });
 }
 
 function renderSubDialog(doc, container, state) {

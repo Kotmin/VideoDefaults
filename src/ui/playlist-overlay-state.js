@@ -45,20 +45,42 @@ export function backspace(state) {
   return { ...state, query: state.query.slice(0, -1), highlightIndex: 0 };
 }
 
-// Space: local checkbox state only, capped at 5 (issue #16) — a 6th toggle
-// attempt is ignored rather than silently dropping an earlier pick at
-// confirm time, so the checked set the user sees is always what gets added.
+// Shared by toggle/check/uncheck: local checkbox state only, capped at 5
+// (issue #16) — a 6th check attempt is ignored rather than silently
+// dropping an earlier pick at confirm time, so the checked set the user
+// sees is always what gets added.
+function setHighlightedChecked(state, shouldCheck) {
+  const row = highlightedRow(state);
+  if (row === CREATE_NEW_ROW) return state;
+  const already = state.checked.has(row.name);
+  if (shouldCheck === already) return state;
+  const checked = new Set(state.checked);
+  if (shouldCheck) {
+    if (checked.size >= MAX_CONFIRM_SELECTION) return state;
+    checked.add(row.name);
+  } else {
+    checked.delete(row.name);
+  }
+  return { ...state, checked, touched: true };
+}
+
 export function toggleHighlighted(state) {
   const row = highlightedRow(state);
   if (row === CREATE_NEW_ROW) return state;
-  const checked = new Set(state.checked);
-  if (checked.has(row.name)) {
-    checked.delete(row.name);
-  } else {
-    if (checked.size >= MAX_CONFIRM_SELECTION) return state;
-    checked.add(row.name);
-  }
-  return { ...state, checked, touched: true };
+  return setHighlightedChecked(state, !state.checked.has(row.name));
+}
+
+// Right/left-arrow alternative to space (issue #16 follow-up — space can
+// occasionally leak through to YouTube's own play/pause; see
+// docs/keyboard-quickstart.md). Directional rather than a toggle: pressing
+// check on an already-checked row (or uncheck on an already-unchecked one)
+// is a no-op instead of flipping it.
+export function checkHighlighted(state) {
+  return setHighlightedChecked(state, true);
+}
+
+export function uncheckHighlighted(state) {
+  return setHighlightedChecked(state, false);
 }
 
 // Diffs the desired checked set against each playlist's original (native)

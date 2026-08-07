@@ -144,6 +144,8 @@ assumption until confirmed by interaction.
    blocking a first implementation pass, since "toggle applies immediately"
    is YouTube's standard pattern elsewhere (e.g. like/dislike, subscribe) and
    can be verified during implementation instead of via another manual probe.
-4. If possible, an account with enough playlists to actually overflow
-   `max-height: 220px`, to confirm scrolling reveals more DOM nodes rather
-   than the list being capped/virtualized — nice-to-have, not blocking.
+4. An account with enough playlists to actually overflow `max-height: 220px`,
+   to confirm scrolling reveals more DOM nodes rather than the list being
+   capped/virtualized — spun out to
+   [#17](https://github.com/Kotmin/VideoDefaults/issues/17), not blocking
+   #16.

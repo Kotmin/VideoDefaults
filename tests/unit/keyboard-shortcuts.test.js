@@ -70,6 +70,16 @@ describe('normalizeKeymap', () => {
     assert.equal(km.chords.h, DEFAULT_KEYMAP.chords.h);
   });
 
+  it('drops shiftChord entries with unknown commands and invalid keys, keeping defaults for the rest', () => {
+    const km = normalizeKeymap({ shiftChords: { p: 'rm-rf', long: COMMANDS.GO_HOME } });
+    assert.deepEqual(km.shiftChords, { ...DEFAULT_KEYMAP.shiftChords });
+  });
+
+  it('merges a stored shiftChords partial override onto the defaults', () => {
+    const km = normalizeKeymap({ shiftChords: { p: COMMANDS.GO_HOME } });
+    assert.equal(km.shiftChords.p, COMMANDS.GO_HOME);
+  });
+
   it('rejects non-youtube and non-https home urls', () => {
     assert.equal(normalizeKeymap({ homeUrl: 'https://evil.example/' }).homeUrl, DEFAULT_KEYMAP.homeUrl);
     assert.equal(normalizeKeymap({ homeUrl: 'http://www.youtube.com/' }).homeUrl, DEFAULT_KEYMAP.homeUrl);
@@ -103,6 +113,11 @@ describe('DEFAULT_KEYMAP', () => {
 
   it('chord p maps to show-queue-labels', () => {
     assert.equal(DEFAULT_KEYMAP.chords.p, COMMANDS.SHOW_QUEUE_LABELS);
+  });
+
+  it('shift-chord p maps to show-playlist-labels, distinct from plain p', () => {
+    assert.equal(DEFAULT_KEYMAP.shiftChords.p, COMMANDS.SHOW_PLAYLIST_LABELS);
+    assert.notEqual(DEFAULT_KEYMAP.shiftChords.p, DEFAULT_KEYMAP.chords.p);
   });
 });
 
@@ -167,6 +182,20 @@ describe('createShortcutController', () => {
     c.handleKey(prefix, DEFAULT_KEYMAP);
     const r = c.handleKey(key('p'), DEFAULT_KEYMAP);
     assert.equal(r.command, COMMANDS.SHOW_QUEUE_LABELS);
+  });
+
+  it('prefix then Shift+P returns show-playlist-labels, not show-queue-labels', () => {
+    const c = createShortcutController();
+    c.handleKey(prefix, DEFAULT_KEYMAP);
+    const r = c.handleKey(key('P', { shiftKey: true }), DEFAULT_KEYMAP);
+    assert.deepEqual(r, { consume: true, command: COMMANDS.SHOW_PLAYLIST_LABELS, pending: false });
+  });
+
+  it('shift held on a key with no shiftChord entry does not fall back to the unshifted chord', () => {
+    const c = createShortcutController();
+    c.handleKey(prefix, DEFAULT_KEYMAP);
+    const r = c.handleKey(key('Y', { shiftKey: true }), DEFAULT_KEYMAP);
+    assert.deepEqual(r, { consume: false, command: null, pending: false });
   });
 
   it('unknown key cancels pending without consuming', () => {

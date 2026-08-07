@@ -1,14 +1,17 @@
 # "Save to playlist" popup — DOM findings
 
 Captured 2026-08-07 by K from a real logged-in YouTube account (watch page,
-video's ⋮ menu → "Save to..."). Source: a full "Save as complete" page save;
-only the relevant fragment was kept as `save-to-playlist-popup.html` (the
-`<yt-sheet-view-model>` subtree) — the rest of the saved page and its 19MB
-asset folder were discarded as unnecessary bulk, and every real playlist name
-in the kept fragment was replaced with a generic `Playlist A`..`Playlist P`
-placeholder (`Watch later` and `Shorts`, YouTube's own system playlists, were
-left as-is). Locale of the source account is Polish; only the alphabet/text
-differs from other locales, not the structure.
+video's ⋮ menu → "Save to..."), across two sessions: one with nothing checked
+(`save-to-playlist-popup.html`), one with the video already saved to "Watch
+later" (`save-to-playlist-popup-selected.html`), diffed to find the selected-
+state signal below. Source for both: a full "Save as complete" page save;
+only the relevant fragment was kept (the `<yt-sheet-view-model>` subtree) —
+the rest of each saved page and its ~19MB asset folder were discarded as
+unnecessary bulk, and every real playlist name in the kept fragments was
+replaced with a generic `Playlist A`..`Playlist P` placeholder (`Watch later`
+and `Shorts`, YouTube's own system playlists, were left as-is). Locale of the
+source account is Polish; only the alphabet/text differs from other locales,
+not the structure.
 
 ## Component
 
@@ -34,20 +37,18 @@ yt-sheet-view-model[slot="dropdown-content"]
 
 - One `toggleable-list-item-view-model` > `yt-list-item-view-model` per
   playlist, `role="menuitem"`.
-- **No `aria-checked` or other ARIA state attribute.** Selected/unselected
-  state is only exposed as the last comma-segment of `aria-label`, e.g.
-  `"Playlist A, Publiczna, Niewybrany"` (Public, Unselected) — this capture
-  has nothing checked, so the "selected" text value wasn't observed directly;
-  need a second capture with at least one playlist already containing the
-  video to confirm the exact selected-state string. **This is locale text**
-  (Polish `Niewybrany`/`Wybrany`, `Publiczna`/`Prywatna`/`Niepubliczna`), so a
-  real scraper can't match on it directly the same way the queue-overlay menu
-  item text isn't matched — needs either a translation table or (preferably)
-  a structural/icon-based signal once found. Not yet located in this capture;
-  flagged as a follow-up probe target (does the row grow a checkmark icon
-  element when selected? no icon-related class was found in this empty state,
-  which is what we'd expect for the *unchecked* case, so it doesn't rule one
-  in for the checked case).
+- **Selected/unselected state resolved** — K captured a second probe
+  (`save-to-playlist-popup-selected.html`, watch page for a video already
+  saved to "Watch later") and diffing the two captures' identical row found
+  the real signal: the row's inner
+  `<button class="ytButtonOrAnchorHost ...">` carries **`aria-pressed="false"`
+  / `aria-pressed="true"`** — a genuine ARIA state attribute, locale- and
+  translation-independent. Use this for matching, not the `aria-label` text
+  (which does also change, e.g. `"Watch later, Prywatna, Niewybrany"` →
+  `"...Wybrany"`, but that's Polish-only text — `aria-pressed` is the
+  structural signal to rely on). The row's SVG bookmark icon `path` also
+  changes shape between states (outline vs. filled/notch-removed) as a
+  secondary, redundant visual cue — not needed once `aria-pressed` is used.
 - Every row carries a small thumbnail (`yt-collection-thumbnail-view-model`),
   not needed for matching.
 - 18 playlists were present (16 user-created + `Watch later` + `Shorts`,
@@ -81,16 +82,34 @@ per K's direction, not a hard guarantee.
 ## Create-new-playlist control
 
 **Not a row inside the scrollable list** — it's a separate button in the
-sheet's *footer* (`ytContextualSheetLayoutFooterContainer` →
-`yt-panel-footer-view-model`), `aria-label="Utwórz nową playlistę"`
-(~"Create new playlist"). Our own overlay UI can still choose to present
-create-new as an in-list "+" row per K's UX decision (issue #16) — that's a
-presentational choice in our overlay, independent of how the native popup
-lays it out. The scraper driving the native popup just needs to look for this
-footer button separately from the list items, not expect a checkbox-shaped
-row for it.
+sheet's *footer*:
 
-Clicking it was not captured in this session (this fragment shows the
+```
+div.ytContextualSheetLayoutFooterContainer
+  yt-panel-footer-view-model
+    div.ytPanelFooterViewModelPrimaryButton
+      button-view-model > button   ← this is "Create new playlist"
+```
+
+**Match this structurally, not by `aria-label` text** (K's direction — the
+button's `aria-label="Utwórz nową playlistę"` is Polish-only, same problem the
+`aria-label` on playlist rows had). It's the sheet's only footer primary
+button — the sibling `ytPanelFooterViewModelButtonRowLeftButton` slot is
+present but empty/hidden in every capture so far — so
+`.ytContextualSheetLayoutFooterContainer .ytPanelFooterViewModelPrimaryButton button`
+(or equivalent: "the footer's primary button") is a locale-independent
+selector with no text matching needed. Its icon is a plain `+` (SVG path
+`M12 3a1 1 0 00-1 1v7H4a1 1 0 000 2h7v7a1 1 0 002 0v-7h7a1 1 0 000-2h-7V4a1 1 0 00-1-1Z`)
+— the same icon path also used by the masthead's global "Create" button
+elsewhere on the page, confirming it's YouTube's general reusable "create"
+icon, not specific to this sheet; not needed as a selector once the
+structural footer-button path above is used, but useful corroboration.
+
+Our own overlay UI can still choose to present create-new as an in-list "+"
+row per K's UX decision (issue #16) — that's a presentational choice in our
+overlay, independent of how the native popup lays it out.
+
+Clicking it was not captured in either session (both fragments show the
 pre-click state only) — a follow-up capture of what appears after clicking
 "Utwórz nową playlistę" (a name-entry field? inline or a second sheet?) is
 still needed before implementing the create-new flow.
@@ -106,14 +125,25 @@ staging changes for a batch confirm. Not independently verified by clicking
 changes against, so a live "click toggles immediately" model is the working
 assumption until confirmed by interaction.
 
+## Sources
+
+- `save-to-playlist-popup.html` — nothing selected (2026-08-07).
+- `save-to-playlist-popup-selected.html` — same account, video already saved
+  to "Watch later" (2026-08-07), used to diff and find the `aria-pressed`
+  signal above.
+
 ## Follow-ups needed before implementation
 
-1. A capture with **at least one playlist already containing the video**, to
-   read the actual "selected" aria-label text/structural signal.
+1. ~~A capture with at least one playlist already containing the video~~ —
+   **done**, see `save-to-playlist-popup-selected.html` and the resolved
+   selected-state signal above.
 2. A capture of the **post-click state of "Utwórz nową playlistę"** (create-new
-   name entry UI).
+   name entry UI) — still needed.
 3. Confirm live (click, not just static capture) that a checkbox toggle
-   applies immediately with no separate confirm step.
+   applies immediately with no separate confirm step — still needed; not
+   blocking a first implementation pass, since "toggle applies immediately"
+   is YouTube's standard pattern elsewhere (e.g. like/dislike, subscribe) and
+   can be verified during implementation instead of via another manual probe.
 4. If possible, an account with enough playlists to actually overflow
    `max-height: 220px`, to confirm scrolling reveals more DOM nodes rather
-   than the list being capped/virtualized.
+   than the list being capped/virtualized — nice-to-have, not blocking.

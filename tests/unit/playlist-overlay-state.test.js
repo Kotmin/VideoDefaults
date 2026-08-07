@@ -14,6 +14,7 @@ import {
   backspaceInCreateDialog,
   closeCreateDialog,
   commitCreatedPlaylist,
+  resolveCreatedPlaylistChanges,
 } from '../../src/ui/playlist-overlay-state.js';
 
 const PLAYLISTS = [{ name: 'Comedy' }, { name: 'Documentaries' }, { name: 'Watch later' }];
@@ -92,20 +93,50 @@ describe('toggleHighlighted', () => {
 });
 
 describe('resolveEnter', () => {
-  it('confirms the checked set when non-empty', () => {
+  it('confirms the checked set as an add when non-empty', () => {
     const s = toggleHighlighted(moveHighlight(createOverlayState(PLAYLISTS), 1));
     const result = resolveEnter(s);
-    assert.deepEqual(result, { type: 'confirm', names: ['Documentaries'] });
+    assert.deepEqual(result, { type: 'confirm', toAdd: ['Documentaries'], toRemove: [] });
   });
 
   it('implicitly single-selects the highlighted row when nothing is checked', () => {
     const s = createOverlayState(PLAYLISTS);
-    assert.deepEqual(resolveEnter(s), { type: 'confirm', names: ['Comedy'] });
+    assert.deepEqual(resolveEnter(s), { type: 'confirm', toAdd: ['Comedy'], toRemove: [] });
   });
 
   it('opens create-new when the create-new row is highlighted', () => {
     const s = moveHighlight(createOverlayState(PLAYLISTS), -1);
     assert.deepEqual(resolveEnter(s), { type: 'create-new' });
+  });
+
+  it('pre-checks playlists the video is already in', () => {
+    const seeded = [{ name: 'Comedy', selected: true }, { name: 'Documentaries', selected: false }];
+    const s = createOverlayState(seeded);
+    assert.ok(s.checked.has('Comedy'));
+    assert.ok(!s.checked.has('Documentaries'));
+  });
+
+  it('unchecking a pre-checked playlist and confirming resolves it as a removal', () => {
+    const seeded = [{ name: 'Comedy', selected: true }, { name: 'Documentaries', selected: false }];
+    const s = toggleHighlighted(createOverlayState(seeded));
+    const result = resolveEnter(s);
+    assert.deepEqual(result, { type: 'confirm', toAdd: [], toRemove: ['Comedy'] });
+  });
+
+  it('implicit single-select on a highlighted row adds it without dropping pre-checked playlists', () => {
+    const seeded = [{ name: 'Comedy', selected: true }, { name: 'Documentaries', selected: false }];
+    const s = moveHighlight(createOverlayState(seeded), 1);
+    const result = resolveEnter(s);
+    assert.deepEqual(result, { type: 'confirm', toAdd: ['Documentaries'], toRemove: [] });
+  });
+});
+
+describe('resolveCreatedPlaylistChanges', () => {
+  it('diffs the checked set against original selected flags', () => {
+    const seeded = [{ name: 'Comedy', selected: true }, { name: 'Documentaries', selected: false }];
+    let s = toggleHighlighted(createOverlayState(seeded));
+    s = { ...s, playlists: [...s.playlists, { name: 'New Stuff', selected: false }], checked: new Set([...s.checked, 'New Stuff']) };
+    assert.deepEqual(resolveCreatedPlaylistChanges(s), { toAdd: ['New Stuff'], toRemove: ['Comedy'] });
   });
 });
 

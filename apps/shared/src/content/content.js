@@ -29,6 +29,7 @@
     const {
       createOverlayState, moveHighlight, typeChar, backspace, toggleHighlighted, resolveEnter,
       openCreateDialog, typeInCreateDialog, backspaceInCreateDialog, closeCreateDialog, commitCreatedPlaylist,
+      resolveCreatedPlaylistChanges,
     } = await import(browser.runtime.getURL('lib/ui/playlist-overlay-state.js'));
     const {
       createPlaylistOverlay, showPlaylistProgress, finishPlaylistProgress, showNotLoggedInBadge,
@@ -165,14 +166,17 @@
         playlistState = null;
       }
 
+      // Always scrapes fresh: membership (which playlists already contain
+      // this video) is per-video, not cacheable, and the popup is now hidden
+      // while driven (see playlist-popup-driver.js) so there's no visible
+      // cost to opening it on every overlay open. The cache is still written
+      // (name catalog only) for other consumers that don't need membership.
       async function loadPlaylistCatalog(trigger) {
-        const cached = await playlistCache.read();
-        if (cached) return cached;
         const rows = await openSaveToPlaylistPopup(trigger, document, window);
         closeSaveToPlaylistPopup(document, window);
         if (rows.length === 0) return null;
-        const playlists = rows.map((r) => ({ name: r.name }));
-        await playlistCache.write(playlists);
+        const playlists = rows.map((r) => ({ name: r.name, selected: r.selected }));
+        await playlistCache.write(playlists.map((p) => ({ name: p.name })));
         return playlists;
       }
 
@@ -194,29 +198,34 @@
         playlistOverlay.render(playlistState);
       }
 
-      // Adds sequentially, reopening the native popup once per playlist
+      // Applies sequentially, reopening the native popup once per playlist
       // (issue #16 resolved design — no batch confirm exists natively).
-      // Idempotent per row: only clicks when not already selected, since
-      // the native button is a toggle and would remove an existing add.
-      async function addVideoToPlaylists(names) {
+      // Idempotent per row: only clicks when the row's live state disagrees
+      // with the desired one, since the native button is a plain toggle.
+      async function addVideoToPlaylists(toAdd, toRemove = []) {
+        const changes = [
+          ...toAdd.map((name) => ({ name, shouldSelect: true })),
+          ...toRemove.map((name) => ({ name, shouldSelect: false })),
+        ];
+        if (changes.length === 0) return;
         const trigger = findSaveToPlaylistTrigger(document);
         if (!trigger) return;
         const videoEl = findVideoElement(document);
         const rect = videoEl ? videoEl.getBoundingClientRect() : { top: 0, left: 0 };
-        let added = 0;
-        showPlaylistProgress(document, rect, 0, names.length);
-        for (const name of names) {
+        let applied = 0;
+        showPlaylistProgress(document, rect, 0, changes.length);
+        for (const { name, shouldSelect } of changes) {
           const rows = await openSaveToPlaylistPopup(trigger, document, window);
           const row = rows.find((r) => r.name === name);
           if (row) {
-            if (!row.selected) togglePlaylistRow(row);
-            added += 1;
+            if (row.selected !== shouldSelect) togglePlaylistRow(row);
+            applied += 1;
           }
           closeSaveToPlaylistPopup(document, window);
-          showPlaylistProgress(document, rect, added, names.length);
+          showPlaylistProgress(document, rect, applied, changes.length);
         }
         await playlistCache.invalidate();
-        finishPlaylistProgress(document, rect, added, names.length);
+        finishPlaylistProgress(document, rect, applied, changes.length);
       }
 
       async function createNewPlaylistOnSite(name) {
@@ -255,7 +264,9 @@
             const finalState = commitCreatedPlaylist(playlistState, name);
             closePlaylistOverlay();
             createNewPlaylistOnSite(name).then((ok) => {
-              if (ok) addVideoToPlaylists([...finalState.checked]);
+              if (!ok) return;
+              const { toAdd, toRemove } = resolveCreatedPlaylistChanges(finalState);
+              addVideoToPlaylists(toAdd, toRemove);
             });
             return;
           }
@@ -294,7 +305,7 @@
             return;
           }
           closePlaylistOverlay();
-          addVideoToPlaylists(result.names);
+          addVideoToPlaylists(result.toAdd, result.toRemove);
           return;
         }
         if (e.key.length === 1) {

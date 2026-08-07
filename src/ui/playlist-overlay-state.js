@@ -4,12 +4,16 @@ import { filterPlaylistsByQuery } from '../core/fuzzy-match.js';
 export const CREATE_NEW_ROW = Symbol('create-new');
 const MAX_CONFIRM_SELECTION = 5;
 
+// Playlists the current video is already in are pre-checked (issue #16
+// follow-up) so unchecking one and confirming reads as "remove from this
+// playlist" — see resolveEnter's diff against the original selected flags.
 export function createOverlayState(playlists) {
   return {
     playlists,
     query: '',
     highlightIndex: 0,
-    checked: new Set(),
+    checked: new Set(playlists.filter((p) => p.selected).map((p) => p.name)),
+    touched: false,
     subDialog: null,
   };
 }
@@ -54,16 +58,33 @@ export function toggleHighlighted(state) {
     if (checked.size >= MAX_CONFIRM_SELECTION) return state;
     checked.add(row.name);
   }
-  return { ...state, checked };
+  return { ...state, checked, touched: true };
 }
 
-// Enter: checked set if non-empty, else implicit single-select on the
-// highlighted row, else opens the create-new sub-dialog (resolved 2026-08-07).
+// Diffs the desired checked set against each playlist's original (native)
+// selected flag, so a confirm can both add newly-checked playlists and
+// remove ones the user unchecked that the video was already in.
+function diffSelection(playlists, desired) {
+  const originallySelected = new Set(playlists.filter((p) => p.selected).map((p) => p.name));
+  const toAdd = [...desired].filter((name) => !originallySelected.has(name));
+  const toRemove = [...originallySelected].filter((name) => !desired.has(name));
+  return { toAdd, toRemove };
+}
+
+// Enter: if the user has toggled anything (Space, at least once) or the
+// create-new dialog isn't involved, confirm the checked set as-is; else
+// (nothing ever toggled) implicit single-select adds the highlighted row on
+// top of whatever's already checked, so it isn't lost when the video is
+// already saved elsewhere (resolved 2026-08-07).
 export function resolveEnter(state) {
   const row = highlightedRow(state);
   if (row === CREATE_NEW_ROW) return { type: 'create-new' };
-  if (state.checked.size > 0) return { type: 'confirm', names: [...state.checked] };
-  return { type: 'confirm', names: [row.name] };
+  const desired = state.touched ? state.checked : new Set([...state.checked, row.name]);
+  return { type: 'confirm', ...diffSelection(state.playlists, desired) };
+}
+
+export function resolveCreatedPlaylistChanges(state) {
+  return diffSelection(state.playlists, state.checked);
 }
 
 export function openCreateDialog(state) {

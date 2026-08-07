@@ -6,6 +6,7 @@ import {
   openSaveToPlaylistPopup,
   togglePlaylistRow,
   activateCreateNew,
+  driveCreateNewPlaylist,
   closeSaveToPlaylistPopup,
 } from '../../src/ui/playlist-popup-driver.js';
 
@@ -103,6 +104,67 @@ describe('activateCreateNew', () => {
 
   it('returns false when no create-new button is found', () => {
     assert.equal(activateCreateNew(makeDoc([], null)), false);
+  });
+});
+
+function makeCreateNewWin(extra = {}) {
+  return {
+    setTimeout: (fn) => fn(),
+    Event: class { constructor(type, init) { this.type = type; Object.assign(this, init); } },
+    KeyboardEvent: class { constructor(type, init) { this.type = type; Object.assign(this, init); } },
+    ...extra,
+  };
+}
+
+function makeInputElement() {
+  return {
+    value: null,
+    focused: false,
+    dispatched: [],
+    focus() { this.focused = true; },
+    dispatchEvent(evt) { this.dispatched.push(evt); },
+  };
+}
+
+describe('driveCreateNewPlaylist', () => {
+  it('clicks create-new, fills the field, and submits with Enter', async () => {
+    const btn = { clicked: 0, click() { this.clicked += 1; } };
+    const input = makeInputElement();
+    const doc = { querySelector: (sel) => (sel === '.ytContextualSheetLayoutFooterContainer .ytPanelFooterViewModelPrimaryButton button' ? btn : input) };
+    const ok = await driveCreateNewPlaylist(doc, makeCreateNewWin(), 'New Stuff');
+    assert.equal(ok, true);
+    assert.equal(btn.clicked, 1);
+    assert.equal(input.value, 'New Stuff');
+    assert.equal(input.focused, true);
+    assert.deepEqual(input.dispatched.map((e) => e.type), ['input', 'keydown']);
+    assert.equal(input.dispatched[1].key, 'Enter');
+  });
+
+  it('returns false when the create-new button is not found', async () => {
+    const doc = { querySelector: () => null };
+    assert.equal(await driveCreateNewPlaylist(doc, makeCreateNewWin(), 'New Stuff'), false);
+  });
+
+  it('returns false when no input field appears before the timeout', async () => {
+    const btn = { clicked: 0, click() { this.clicked += 1; } };
+    let calls = 0;
+    const doc = {
+      querySelector: (sel) => {
+        if (sel === '.ytContextualSheetLayoutFooterContainer .ytPanelFooterViewModelPrimaryButton button') return btn;
+        calls += 1;
+        return null;
+      },
+    };
+    let now = 0;
+    const realNow = Date.now;
+    Date.now = () => now;
+    try {
+      const fastWin = makeCreateNewWin({ setTimeout: (fn) => { now += 100; fn(); } });
+      assert.equal(await driveCreateNewPlaylist(doc, fastWin, 'New Stuff'), false);
+      assert.ok(calls > 0);
+    } finally {
+      Date.now = realNow;
+    }
   });
 });
 

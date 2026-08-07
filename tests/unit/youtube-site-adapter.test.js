@@ -5,6 +5,8 @@ import {
   getVideoContextId,
   findVideoElement,
   createYouTubeSiteAdapter,
+  isLoggedIn,
+  findSaveToPlaylistTrigger,
 } from '../../src/site-adapters/youtube/youtube-site-adapter.js';
 
 function makeEventTarget() {
@@ -86,6 +88,25 @@ describe('findVideoElement', () => {
   it('returns null when querySelector finds nothing', () => {
     const doc = { querySelector: () => null };
     assert.equal(findVideoElement(doc), null);
+  });
+});
+
+describe('isLoggedIn', () => {
+  it('returns true when the avatar button is present', () => {
+    const doc = { querySelector: (sel) => (sel === '#avatar-btn' ? {} : null) };
+    assert.equal(isLoggedIn(doc), true);
+  });
+
+  it('returns false when the avatar button is absent', () => {
+    const doc = { querySelector: () => null };
+    assert.equal(isLoggedIn(doc), false);
+  });
+});
+
+describe('findSaveToPlaylistTrigger', () => {
+  it('returns null (unverified stub pending a real DOM capture)', () => {
+    const doc = { querySelector: () => ({}) };
+    assert.equal(findSaveToPlaylistTrigger(doc), null);
   });
 });
 

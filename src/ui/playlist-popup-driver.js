@@ -7,6 +7,7 @@
 // legacy ytd-add-to-playlist-renderer popup.
 const ROW_TOGGLE_SELECTOR = 'yt-list-view-model[role="menu"] toggleable-list-item-view-model button[aria-pressed]';
 const CREATE_NEW_BUTTON_SELECTOR = '.ytContextualSheetLayoutFooterContainer .ytPanelFooterViewModelPrimaryButton button';
+const CREATE_NAME_INPUT_SELECTOR = 'yt-sheet-view-model input, yt-sheet-view-model [contenteditable="true"]';
 const POPUP_WAIT_TIMEOUT_MS = 1500;
 const POPUP_WAIT_POLL_MS = 50;
 
@@ -62,6 +63,35 @@ export function activateCreateNew(doc) {
   const button = findCreateNewButton(doc);
   if (!button) return false;
   button.click();
+  return true;
+}
+
+function waitForCreateInput(doc, win) {
+  return new Promise((resolve) => {
+    const deadline = Date.now() + POPUP_WAIT_TIMEOUT_MS;
+    (function poll() {
+      const input = doc.querySelector(CREATE_NAME_INPUT_SELECTOR);
+      if (input) return resolve(input);
+      if (Date.now() >= deadline) return resolve(null);
+      win.setTimeout(poll, POPUP_WAIT_POLL_MS);
+    }());
+  });
+}
+
+// UNVERIFIED: the DOM after clicking "Create new playlist" was never
+// captured (see docs/ai/questions-for-K.md). Best-effort per K's direction —
+// assumes an inline text field appears inside the same sheet, and submits it
+// with Enter. Self-healing: resolves false without throwing if no field
+// appears within the timeout, so the caller can leave the overlay state
+// untouched on failure.
+export async function driveCreateNewPlaylist(doc, win, name) {
+  if (!activateCreateNew(doc)) return false;
+  const input = await waitForCreateInput(doc, win);
+  if (!input) return false;
+  input.focus();
+  input.value = name;
+  input.dispatchEvent(new win.Event('input', { bubbles: true }));
+  input.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
   return true;
 }
 

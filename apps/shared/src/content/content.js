@@ -10,8 +10,10 @@
     } = await import(browser.runtime.getURL('lib/core/playback-state.js'));
     const { MESSAGE_TYPES, validateMessage } = await import(browser.runtime.getURL('lib/core/validation.js'));
     const { debounce } = await import(browser.runtime.getURL('lib/core/debounce.js'));
-    const { isYouTubeWatchPage, findVideoElement, createYouTubeSiteAdapter } =
-      await import(browser.runtime.getURL('lib/site-adapters/youtube/youtube-site-adapter.js'));
+    const {
+      isYouTubeWatchPage, findVideoElement, createYouTubeSiteAdapter,
+      isLoggedIn, findSaveToPlaylistTrigger,
+    } = await import(browser.runtime.getURL('lib/site-adapters/youtube/youtube-site-adapter.js'));
     const { createPlayerAdapter } = await import(browser.runtime.getURL('lib/player-adapters/html5-video-player-adapter.js'));
     const {
       COMMANDS, SPEED_SHORTCUTS, createShortcutController, generateLabels, filterLabelPairs,
@@ -20,6 +22,17 @@
       await import(browser.runtime.getURL('lib/ui/jump-overlay.js'));
     const { collectQueueTargets, activateQueueTarget, showQueueConfirmation } =
       await import(browser.runtime.getURL('lib/ui/queue-overlay.js'));
+    const {
+      openSaveToPlaylistPopup, togglePlaylistRow, driveCreateNewPlaylist, closeSaveToPlaylistPopup,
+    } = await import(browser.runtime.getURL('lib/ui/playlist-popup-driver.js'));
+    const { createPlaylistCache } = await import(browser.runtime.getURL('lib/core/playlist-cache.js'));
+    const {
+      createOverlayState, moveHighlight, typeChar, backspace, toggleHighlighted, resolveEnter,
+      openCreateDialog, typeInCreateDialog, backspaceInCreateDialog, closeCreateDialog, commitCreatedPlaylist,
+    } = await import(browser.runtime.getURL('lib/ui/playlist-overlay-state.js'));
+    const {
+      createPlaylistOverlay, showPlaylistProgress, finishPlaylistProgress,
+    } = await import(browser.runtime.getURL('lib/ui/playlist-overlay.js'));
 
     const isMac = isMacPlatform(navigator);
     let settings = null;
@@ -143,6 +156,148 @@
         labelState = { pairs, typed: '', mode: 'queue' };
       }
 
+      const playlistOverlay = createPlaylistOverlay(document);
+      const playlistCache = createPlaylistCache(browser);
+      let playlistState = null;
+
+      function closePlaylistOverlay() {
+        playlistOverlay.close();
+        playlistState = null;
+      }
+
+      async function loadPlaylistCatalog(trigger) {
+        const cached = await playlistCache.read();
+        if (cached) return cached;
+        const rows = await openSaveToPlaylistPopup(trigger, document, window);
+        closeSaveToPlaylistPopup(document, window);
+        if (rows.length === 0) return null;
+        const playlists = rows.map((r) => ({ name: r.name }));
+        await playlistCache.write(playlists);
+        return playlists;
+      }
+
+      // Feature gated to logged-in users; both isLoggedIn and the trigger
+      // finder are unverified best-effort (see youtube-site-adapter.js),
+      // so a wrong or missing signal self-heals to a silent no-op here.
+      async function openPlaylistOverlay() {
+        if (!isLoggedIn(document)) return;
+        const trigger = findSaveToPlaylistTrigger(document);
+        if (!trigger) return;
+        const playlists = await loadPlaylistCatalog(trigger);
+        if (!playlists) return;
+        playlistState = createOverlayState(playlists);
+        playlistOverlay.render(playlistState);
+      }
+
+      // Adds sequentially, reopening the native popup once per playlist
+      // (issue #16 resolved design — no batch confirm exists natively).
+      // Idempotent per row: only clicks when not already selected, since
+      // the native button is a toggle and would remove an existing add.
+      async function addVideoToPlaylists(names) {
+        const trigger = findSaveToPlaylistTrigger(document);
+        if (!trigger) return;
+        const videoEl = findVideoElement(document);
+        const rect = videoEl ? videoEl.getBoundingClientRect() : { top: 0, left: 0 };
+        let added = 0;
+        showPlaylistProgress(document, rect, 0, names.length);
+        for (const name of names) {
+          const rows = await openSaveToPlaylistPopup(trigger, document, window);
+          const row = rows.find((r) => r.name === name);
+          if (row) {
+            if (!row.selected) togglePlaylistRow(row);
+            added += 1;
+          }
+          closeSaveToPlaylistPopup(document, window);
+          showPlaylistProgress(document, rect, added, names.length);
+        }
+        await playlistCache.invalidate();
+        finishPlaylistProgress(document, rect, added, names.length);
+      }
+
+      async function createNewPlaylistOnSite(name) {
+        const trigger = findSaveToPlaylistTrigger(document);
+        if (!trigger) return false;
+        await openSaveToPlaylistPopup(trigger, document, window);
+        const ok = await driveCreateNewPlaylist(document, window, name);
+        closeSaveToPlaylistPopup(document, window);
+        if (ok) await playlistCache.invalidate();
+        return ok;
+      }
+
+      function handlePlaylistKey(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (e.key === 'Escape') {
+          if (playlistState.subDialog) {
+            playlistState = closeCreateDialog(playlistState);
+            playlistOverlay.render(playlistState);
+          } else {
+            closePlaylistOverlay();
+          }
+          return;
+        }
+
+        if (playlistState.subDialog) {
+          if (e.key === 'Backspace') {
+            playlistState = backspaceInCreateDialog(playlistState);
+            playlistOverlay.render(playlistState);
+            return;
+          }
+          if (e.key === 'Enter') {
+            const name = playlistState.subDialog.query.trim();
+            if (name === '') return;
+            const finalState = commitCreatedPlaylist(playlistState, name);
+            closePlaylistOverlay();
+            createNewPlaylistOnSite(name).then((ok) => {
+              if (ok) addVideoToPlaylists([...finalState.checked]);
+            });
+            return;
+          }
+          if (e.key.length === 1) {
+            playlistState = typeInCreateDialog(playlistState, e.key);
+            playlistOverlay.render(playlistState);
+          }
+          return;
+        }
+
+        if (e.key === 'ArrowDown') {
+          playlistState = moveHighlight(playlistState, 1);
+          playlistOverlay.render(playlistState);
+          return;
+        }
+        if (e.key === 'ArrowUp') {
+          playlistState = moveHighlight(playlistState, -1);
+          playlistOverlay.render(playlistState);
+          return;
+        }
+        if (e.key === 'Backspace') {
+          playlistState = backspace(playlistState);
+          playlistOverlay.render(playlistState);
+          return;
+        }
+        if (e.key === ' ') {
+          playlistState = toggleHighlighted(playlistState);
+          playlistOverlay.render(playlistState);
+          return;
+        }
+        if (e.key === 'Enter') {
+          const result = resolveEnter(playlistState);
+          if (result.type === 'create-new') {
+            playlistState = openCreateDialog(playlistState);
+            playlistOverlay.render(playlistState);
+            return;
+          }
+          closePlaylistOverlay();
+          addVideoToPlaylists(result.names);
+          return;
+        }
+        if (e.key.length === 1) {
+          playlistState = typeChar(playlistState, e.key);
+          playlistOverlay.render(playlistState);
+        }
+      }
+
       function handleLabelKey(e) {
         e.preventDefault();
         e.stopPropagation();
@@ -178,6 +333,10 @@
           if (!['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) handleLabelKey(e);
           return;
         }
+        if (playlistState) {
+          if (!['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) handlePlaylistKey(e);
+          return;
+        }
 
         const t = e.target;
         const isEditable = t != null && (t.isContentEditable === true
@@ -197,6 +356,7 @@
         if (result.command === COMMANDS.GO_HOME) goHome();
         if (result.command === COMMANDS.SHOW_JUMP_LABELS) openOverlay();
         if (result.command === COMMANDS.SHOW_QUEUE_LABELS) openQueueOverlay();
+        if (result.command === COMMANDS.SHOW_PLAYLIST_LABELS) openPlaylistOverlay();
         if (result.command in SPEED_SHORTCUTS) setDefaultSpeedFromShortcut(SPEED_SHORTCUTS[result.command]);
         if (result.command === COMMANDS.TOGGLE_AUTO_APPLY) toggleAutoApply();
       }, true);

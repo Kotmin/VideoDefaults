@@ -31,7 +31,7 @@
       openCreateDialog, typeInCreateDialog, backspaceInCreateDialog, closeCreateDialog, commitCreatedPlaylist,
     } = await import(browser.runtime.getURL('lib/ui/playlist-overlay-state.js'));
     const {
-      createPlaylistOverlay, showPlaylistProgress, finishPlaylistProgress,
+      createPlaylistOverlay, showPlaylistProgress, finishPlaylistProgress, showNotLoggedInBadge,
     } = await import(browser.runtime.getURL('lib/ui/playlist-overlay.js'));
 
     const isMac = isMacPlatform(navigator);
@@ -180,7 +180,12 @@
       // finder are unverified best-effort (see youtube-site-adapter.js),
       // so a wrong or missing signal self-heals to a silent no-op here.
       async function openPlaylistOverlay() {
-        if (!isLoggedIn(document)) return;
+        if (!isLoggedIn(document)) {
+          const videoEl = findVideoElement(document);
+          const rect = videoEl ? videoEl.getBoundingClientRect() : { top: 0, left: 0 };
+          showNotLoggedInBadge(document, rect);
+          return;
+        }
         const trigger = findSaveToPlaylistTrigger(document);
         if (!trigger) return;
         const playlists = await loadPlaylistCatalog(trigger);

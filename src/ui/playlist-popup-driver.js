@@ -7,7 +7,17 @@
 // legacy ytd-add-to-playlist-renderer popup.
 const ROW_TOGGLE_SELECTOR = 'yt-list-view-model[role="menu"] toggleable-list-item-view-model button[aria-pressed]';
 const CREATE_NEW_BUTTON_SELECTOR = '.ytContextualSheetLayoutFooterContainer .ytPanelFooterViewModelPrimaryButton button';
-const CREATE_NAME_INPUT_SELECTOR = 'yt-sheet-view-model input, yt-sheet-view-model [contenteditable="true"]';
+// Verified against a real captured DOM (K, 2026-08-07): clicking
+// CREATE_NEW_BUTTON_SELECTOR opens a separate <yt-dialog-view-model>, not
+// another row inside the sheet — the title field is a <textarea>, not an
+// <input>/[contenteditable]. Structural selector, not the Polish "Tytuł"
+// label text.
+const CREATE_NAME_INPUT_SELECTOR = 'yt-create-playlist-dialog-form-view-model textarea';
+// Same dialog's primary ("Utwórz"/Create) submit button. Distinguished from
+// CREATE_NEW_BUTTON_SELECTOR by its container class
+// (ytSpecDialogLayoutFooterContainer, the dialog's own footer) rather than
+// aria-label text, which is locale-specific.
+const CREATE_DIALOG_SUBMIT_SELECTOR = '.ytSpecDialogLayoutFooterContainer .ytPanelFooterViewModelPrimaryButton button';
 const SHEET_SELECTOR = 'yt-sheet-view-model[slot="dropdown-content"]';
 const POPUP_WAIT_TIMEOUT_MS = 1500;
 const POPUP_WAIT_POLL_MS = 50;
@@ -119,12 +129,17 @@ function waitForCreateInput(doc, win) {
   });
 }
 
-// UNVERIFIED: the DOM after clicking "Create new playlist" was never
-// captured (see docs/ai/questions-for-K.md). Best-effort per K's direction —
-// assumes an inline text field appears inside the same sheet, and submits it
-// with Enter. Self-healing: resolves false without throwing if no field
-// appears within the timeout, so the caller can leave the overlay state
-// untouched on failure.
+// Fills the title field of the real create-playlist dialog and clicks its
+// own submit button — reported live: dispatching an Enter keydown never
+// worked here because the field is a <textarea> (Enter inserts a newline,
+// it doesn't submit), and the old input selector never matched a real
+// element at all (see CREATE_NAME_INPUT_SELECTOR above), so nothing was
+// ever typed and YouTube's own dialog was left sitting open empty.
+// Leaves the dialog's visibility dropdown untouched — it already defaults
+// to Private, which is the plugin's intended default (K, 2026-08-07).
+// Self-healing: resolves false without throwing if the field or submit
+// button never appear, so the caller can leave the overlay state untouched
+// on failure.
 export async function driveCreateNewPlaylist(doc, win, name) {
   if (!activateCreateNew(doc)) return false;
   const input = await waitForCreateInput(doc, win);
@@ -132,7 +147,9 @@ export async function driveCreateNewPlaylist(doc, win, name) {
   input.focus();
   input.value = name;
   input.dispatchEvent(new win.Event('input', { bubbles: true }));
-  input.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  const submit = doc.querySelector(CREATE_DIALOG_SUBMIT_SELECTOR);
+  if (!submit) return false;
+  submit.click();
   return true;
 }
 

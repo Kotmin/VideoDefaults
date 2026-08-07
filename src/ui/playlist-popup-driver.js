@@ -11,6 +11,8 @@ const CREATE_NAME_INPUT_SELECTOR = 'yt-sheet-view-model input, yt-sheet-view-mod
 const SHEET_SELECTOR = 'yt-sheet-view-model[slot="dropdown-content"]';
 const POPUP_WAIT_TIMEOUT_MS = 1500;
 const POPUP_WAIT_POLL_MS = 50;
+const CLOSE_VERIFY_TIMEOUT_MS = 800;
+const CLOSE_VERIFY_POLL_MS = 50;
 
 // Reported live: without this, the sheet is genuinely visible on screen for
 // the whole drive sequence (open/toggle/close per playlist), not the
@@ -129,12 +131,35 @@ export async function driveCreateNewPlaylist(doc, win, name) {
   return true;
 }
 
+function isSheetOpen(doc) {
+  return !!doc.querySelector(SHEET_SELECTOR);
+}
+
+function waitForSheetClosed(doc, win) {
+  return new Promise((resolve) => {
+    const deadline = Date.now() + CLOSE_VERIFY_TIMEOUT_MS;
+    (function poll() {
+      if (!isSheetOpen(doc)) return resolve(true);
+      if (Date.now() >= deadline) return resolve(false);
+      win.setTimeout(poll, CLOSE_VERIFY_POLL_MS);
+    }());
+  });
+}
+
 // ponytail: no explicit close/cancel control was found in either probe
 // capture (consistent with "no batch Done button" — see findings doc).
-// Escape is YouTube's universal sheet-dismiss key elsewhere on the site;
-// self-healing best-effort here, not independently confirmed for this
-// specific sheet by a live click.
-export function closeSaveToPlaylistPopup(doc, win) {
+// Escape is YouTube's universal sheet-dismiss key elsewhere on the site but
+// reported live as unreliable for this sheet (K found it left open at the
+// end of a drive sequence) — verifies the close actually happened instead
+// of trusting it blindly, and falls back to re-clicking the trigger (a
+// standard toggle-button pattern) when Escape didn't work. Ceiling: if
+// neither closes it, the sheet is left as-is rather than looping forever.
+export async function closeSaveToPlaylistPopup(doc, win, triggerButton) {
   restoreSheetVisibility(doc);
+  if (!isSheetOpen(doc)) return;
   doc.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  if (await waitForSheetClosed(doc, win)) return;
+  if (!triggerButton) return;
+  triggerButton.click();
+  await waitForSheetClosed(doc, win);
 }

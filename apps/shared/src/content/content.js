@@ -232,12 +232,21 @@
         finishPlaylistProgress(document, rect, applied, changes.length);
       }
 
+      // Leaves the sheet hidden-but-open on success rather than closing it
+      // here: the caller always follows a successful create with
+      // addVideoToPlaylists (the new playlist is always in its toAdd, since
+      // commitCreatedPlaylist checks it while it starts unselected), which
+      // reopens the same sheet immediately anyway. Reported live: closing
+      // here and reopening a beat later left the sheet visibly stuck open —
+      // the redundant close/reopen round-trip was racing the trigger-click
+      // close fallback against the immediate reopen. Only close here on
+      // failure, since then nothing else will touch the sheet afterward.
       async function createNewPlaylistOnSite(name) {
         const trigger = findSaveToPlaylistTrigger(document);
         if (!trigger) return false;
         await openSaveToPlaylistPopup(trigger, document, window);
         const ok = await driveCreateNewPlaylist(document, window, name);
-        await closeSaveToPlaylistPopup(document, window, trigger);
+        if (!ok) await closeSaveToPlaylistPopup(document, window, trigger);
         if (ok) await playlistCache.invalidate();
         return ok;
       }

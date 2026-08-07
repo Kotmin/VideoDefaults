@@ -4,6 +4,7 @@ import { validateSpeed } from './speed.js';
 export const COMMANDS = Object.freeze({
   SHOW_JUMP_LABELS: 'show-jump-labels',
   SHOW_QUEUE_LABELS: 'show-queue-labels',
+  SHOW_PLAYLIST_LABELS: 'show-playlist-labels',
   GO_HOME: 'go-home',
   SET_SPEED_1: 'set-speed-1',
   SET_SPEED_2: 'set-speed-2',
@@ -31,6 +32,12 @@ const FALLBACK_KEYMAP = Object.freeze({
     n: COMMANDS.SET_SPEED_3,
     h: COMMANDS.TOGGLE_AUTO_APPLY,
   }),
+  // Separate namespace from `chords` (rather than shift-encoded key casing) so
+  // Ctrl+A,p (queue) and Ctrl+A,Shift+P (playlist) stay unambiguous regardless
+  // of the raw evt.key case a layout produces; matched via evt.shiftKey.
+  shiftChords: Object.freeze({
+    p: COMMANDS.SHOW_PLAYLIST_LABELS,
+  }),
   homeUrl: 'https://www.youtube.com/',
 });
 
@@ -54,8 +61,8 @@ function normalizePrefix(raw, isMac = false) {
   return { key, ctrl, meta };
 }
 
-function normalizeChords(raw) {
-  const chords = { ...FALLBACK_KEYMAP.chords };
+function normalizeChordMap(raw, fallback) {
+  const chords = { ...fallback };
   if (raw == null || typeof raw !== 'object') return chords;
   for (const [key, command] of Object.entries(raw)) {
     if (!isSingleChar(key)) continue;
@@ -82,7 +89,8 @@ export function normalizeKeymap(raw, isMac = false) {
   const src = raw != null && typeof raw === 'object' ? raw : {};
   return {
     prefix: normalizePrefix(src.prefix, isMac),
-    chords: normalizeChords(src.chords),
+    chords: normalizeChordMap(src.chords, FALLBACK_KEYMAP.chords),
+    shiftChords: normalizeChordMap(src.shiftChords, FALLBACK_KEYMAP.shiftChords),
     homeUrl: normalizeHomeUrl(src.homeUrl),
   };
 }
@@ -142,7 +150,8 @@ export function createShortcutController() {
       pending = false;
       if (evt.key === 'Escape') return { consume: true, command: null, pending };
       if (evt.altKey === true) return { consume: false, command: null, pending };
-      const command = keymap.chords[evt.key.toLowerCase()] ?? null;
+      const map = evt.shiftKey === true ? keymap.shiftChords : keymap.chords;
+      const command = map[evt.key.toLowerCase()] ?? null;
       return { consume: command !== null, command, pending };
     },
   };

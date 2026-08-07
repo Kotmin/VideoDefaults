@@ -9,6 +9,9 @@
     "n": "set-speed-3",
     "h": "toggle-auto-apply"
   },
+  "shiftChords": {
+    "p": "show-playlist-labels"
+  },
   "homeUrl": "https://www.youtube.com/",
   "speeds": {
     "set-speed-1": 1,

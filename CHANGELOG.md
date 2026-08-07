@@ -7,6 +7,9 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+- Playlist picker: `Ctrl+A, Shift+P` opens a fuzzy-search overlay to add the current watch-page video to one or more playlists, or create a new one, without leaving the keyboard. Gated to logged-in users; catalog is cached across tabs. Blocked from working against the live site until the native "Save" trigger button's selector is confirmed (see `docs/ai/questions-for-K.md`).
+
 ## [0.2.0] - 2026-08-06
 
 ### Added

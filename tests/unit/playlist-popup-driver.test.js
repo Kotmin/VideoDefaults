@@ -110,18 +110,26 @@ describe('openSaveToPlaylistPopup', () => {
 
   it('does not attempt to hide anything when no rows appear', async () => {
     const trigger = { clicked: 0, click() { this.clicked += 1; } };
-    let queried = false;
-    const doc = { querySelectorAll: () => [], querySelector: () => { queried = true; return null; } };
+    const sheet = makeStyleTarget();
+    const doc = { querySelectorAll: () => [], querySelector: () => sheet };
     let now = 0;
     const fastWin = { setTimeout: (fn) => { now += 100; fn(); } };
     const realNow = Date.now;
     Date.now = () => now;
     try {
       await openSaveToPlaylistPopup(trigger, doc, fastWin);
-      assert.equal(queried, false);
+      assert.equal(sheet.getStyle('opacity'), undefined);
     } finally {
       Date.now = realNow;
     }
+  });
+
+  it('does not re-click the trigger when the sheet is already open', async () => {
+    const trigger = { clicked: 0, click() { this.clicked += 1; } };
+    const row = makeRowButton({ name: 'Comedy' });
+    const doc = { querySelectorAll: () => [row], querySelector: () => makeStyleTarget() };
+    await openSaveToPlaylistPopup(trigger, doc, win);
+    assert.equal(trigger.clicked, 0);
   });
 });
 
@@ -240,11 +248,9 @@ describe('closeSaveToPlaylistPopup', () => {
     await closeSaveToPlaylistPopup(doc, fastWin());
   });
 
-  it('restores hidden styles and dispatches Escape, which closes the sheet', async () => {
-    const { doc, dispatched, isOpen, sheet } = makeCloseableDoc(true);
-    sheet.style.setProperty('opacity', '0');
+  it('dispatches Escape and closes the sheet without needing the trigger fallback', async () => {
+    const { doc, dispatched, isOpen } = makeCloseableDoc(true);
     await closeSaveToPlaylistPopup(doc, fastWin());
-    assert.equal(sheet.getStyle('opacity'), undefined);
     assert.deepEqual(dispatched.map((e) => e.key), ['Escape']);
     assert.equal(isOpen(), false);
   });
@@ -265,8 +271,9 @@ describe('closeSaveToPlaylistPopup', () => {
     assert.equal(isOpen(), false);
   });
 
-  it('gives up quietly when neither Escape nor the trigger closes the sheet', async () => {
-    const { doc, isOpen } = makeCloseableDoc(false);
+  it('still restores hidden styles as a fallback when neither Escape nor the trigger closes the sheet', async () => {
+    const { doc, isOpen, sheet } = makeCloseableDoc(false);
+    sheet.style.setProperty('opacity', '0');
     const trigger = { clicked: 0, click() { this.clicked += 1; } };
     let now = 0;
     const realNow = Date.now;
@@ -279,5 +286,6 @@ describe('closeSaveToPlaylistPopup', () => {
     }
     assert.equal(trigger.clicked, 1);
     assert.equal(isOpen(), true);
+    assert.equal(sheet.getStyle('opacity'), undefined);
   });
 });

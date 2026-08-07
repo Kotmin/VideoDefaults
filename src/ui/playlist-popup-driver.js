@@ -11,8 +11,8 @@ const CREATE_NAME_INPUT_SELECTOR = 'yt-sheet-view-model input, yt-sheet-view-mod
 const SHEET_SELECTOR = 'yt-sheet-view-model[slot="dropdown-content"]';
 const POPUP_WAIT_TIMEOUT_MS = 1500;
 const POPUP_WAIT_POLL_MS = 50;
-const CLOSE_VERIFY_TIMEOUT_MS = 800;
-const CLOSE_VERIFY_POLL_MS = 50;
+const CLOSE_VERIFY_TIMEOUT_MS = 250;
+const CLOSE_VERIFY_POLL_MS = 25;
 
 // Reported live: without this, the sheet is genuinely visible on screen for
 // the whole drive sequence (open/toggle/close per playlist), not the
@@ -83,9 +83,14 @@ function waitForRows(doc, win) {
 // open, never how the watch page's own action row triggers it — see
 // docs/ai/questions-for-K.md. The caller supplies triggerButton (same
 // dependency-injection shape as queue-overlay's activateQueueTarget); once
-// clicked, everything below is driving probe-verified DOM.
+// clicked, everything below is driving probe-verified DOM. Idempotent: if
+// the sheet is already open (e.g. a prior close attempt didn't finish),
+// re-clicking the trigger would toggle it shut instead of opening it — skip
+// the click and just read whatever's already there. K reported stale data
+// on a reopen right after an add; a same-cycle double-toggle-closed is the
+// most likely cause given close was flaky (see closeSaveToPlaylistPopup).
 export async function openSaveToPlaylistPopup(triggerButton, doc, win) {
-  triggerButton.click();
+  if (!isSheetOpen(doc)) triggerButton.click();
   const rows = await waitForRows(doc, win);
   if (rows.length > 0) hideOpenSheet(doc);
   return rows;
@@ -154,12 +159,17 @@ function waitForSheetClosed(doc, win) {
 // of trusting it blindly, and falls back to re-clicking the trigger (a
 // standard toggle-button pattern) when Escape didn't work. Ceiling: if
 // neither closes it, the sheet is left as-is rather than looping forever.
+// Stays hidden throughout the attempt (K reported the verify wait itself
+// being visibly on screen) — restoreSheetVisibility only runs at the very
+// end, a no-op once the sheet is actually gone, a fallback so it's at least
+// visible/usable if both close attempts failed.
 export async function closeSaveToPlaylistPopup(doc, win, triggerButton) {
+  if (isSheetOpen(doc)) {
+    doc.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    if (!(await waitForSheetClosed(doc, win)) && triggerButton) {
+      triggerButton.click();
+      await waitForSheetClosed(doc, win);
+    }
+  }
   restoreSheetVisibility(doc);
-  if (!isSheetOpen(doc)) return;
-  doc.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-  if (await waitForSheetClosed(doc, win)) return;
-  if (!triggerButton) return;
-  triggerButton.click();
-  await waitForSheetClosed(doc, win);
 }

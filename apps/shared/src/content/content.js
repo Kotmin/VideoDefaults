@@ -198,8 +198,12 @@
         playlistOverlay.render(playlistState);
       }
 
-      // Applies sequentially, reopening the native popup once per playlist
-      // (issue #16 resolved design — no batch confirm exists natively).
+      // Opens the native popup once and toggles every row within that same
+      // session (issue #16 resolved design — no batch confirm exists
+      // natively, but nothing requires closing/reopening between rows
+      // either). Reopening per playlist was the original design; K reported
+      // it as slow and visibly flickering the native popup — each
+      // open/close round trip pays the close-verification wait, N times.
       // Idempotent per row: only clicks when the row's live state disagrees
       // with the desired one, since the native button is a plain toggle.
       async function addVideoToPlaylists(toAdd, toRemove = []) {
@@ -214,16 +218,16 @@
         const rect = videoEl ? videoEl.getBoundingClientRect() : { top: 0, left: 0 };
         let applied = 0;
         showPlaylistProgress(document, rect, 0, changes.length);
+        const rows = await openSaveToPlaylistPopup(trigger, document, window);
         for (const { name, shouldSelect } of changes) {
-          const rows = await openSaveToPlaylistPopup(trigger, document, window);
           const row = rows.find((r) => r.name === name);
           if (row) {
             if (row.selected !== shouldSelect) togglePlaylistRow(row);
             applied += 1;
           }
-          await closeSaveToPlaylistPopup(document, window, trigger);
           showPlaylistProgress(document, rect, applied, changes.length);
         }
+        await closeSaveToPlaylistPopup(document, window, trigger);
         await playlistCache.invalidate();
         finishPlaylistProgress(document, rect, applied, changes.length);
       }

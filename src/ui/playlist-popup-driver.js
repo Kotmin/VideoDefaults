@@ -8,8 +8,24 @@
 const ROW_TOGGLE_SELECTOR = 'yt-list-view-model[role="menu"] toggleable-list-item-view-model button[aria-pressed]';
 const CREATE_NEW_BUTTON_SELECTOR = '.ytContextualSheetLayoutFooterContainer .ytPanelFooterViewModelPrimaryButton button';
 const CREATE_NAME_INPUT_SELECTOR = 'yt-sheet-view-model input, yt-sheet-view-model [contenteditable="true"]';
+const SHEET_SELECTOR = 'yt-sheet-view-model[slot="dropdown-content"]';
 const POPUP_WAIT_TIMEOUT_MS = 1500;
 const POPUP_WAIT_POLL_MS = 50;
+
+// Reported live: without this, the sheet is genuinely visible on screen for
+// the whole drive sequence (open/toggle/close per playlist), not the
+// "off-screen/silently" behavior this module already claimed. Hides the
+// sheet itself rather than depending on the unverified Escape-close below —
+// stays correct even if that close never actually unmounts it.
+function hideOpenSheet(doc) {
+  const sheet = doc.querySelector(SHEET_SELECTOR);
+  if (!sheet) return;
+  sheet.style.setProperty('position', 'fixed', 'important');
+  sheet.style.setProperty('left', '-9999px', 'important');
+  sheet.style.setProperty('top', '-9999px', 'important');
+  sheet.style.setProperty('opacity', '0', 'important');
+  sheet.style.setProperty('pointer-events', 'none', 'important');
+}
 
 function parsePlaylistName(ariaLabel) {
   // ponytail: name is the first comma-separated segment of the row's own
@@ -52,7 +68,9 @@ function waitForRows(doc, win) {
 // clicked, everything below is driving probe-verified DOM.
 export async function openSaveToPlaylistPopup(triggerButton, doc, win) {
   triggerButton.click();
-  return waitForRows(doc, win);
+  const rows = await waitForRows(doc, win);
+  if (rows.length > 0) hideOpenSheet(doc);
+  return rows;
 }
 
 export function togglePlaylistRow(row) {

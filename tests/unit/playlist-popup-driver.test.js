@@ -54,6 +54,14 @@ describe('findCreateNewButton', () => {
   });
 });
 
+function makeStyleTarget() {
+  const style = new Map();
+  return {
+    style: { setProperty: (prop, value) => style.set(prop, value) },
+    getStyle: (prop) => style.get(prop),
+  };
+}
+
 describe('openSaveToPlaylistPopup', () => {
   it('clicks the trigger and resolves once rows appear', async () => {
     const trigger = { clicked: 0, click() { this.clicked += 1; } };
@@ -64,6 +72,7 @@ describe('openSaveToPlaylistPopup', () => {
         calls += 1;
         return calls < 3 ? [] : [row];
       },
+      querySelector: () => null,
     };
     const rows = await openSaveToPlaylistPopup(trigger, doc, win);
     assert.equal(trigger.clicked, 1);
@@ -74,13 +83,39 @@ describe('openSaveToPlaylistPopup', () => {
   it('resolves with an empty list when rows never appear before the timeout', async () => {
     const trigger = { clicked: 0, click() { this.clicked += 1; } };
     let now = 0;
-    const doc = { querySelectorAll: () => [] };
+    const doc = { querySelectorAll: () => [], querySelector: () => null };
     const fastWin = { setTimeout: (fn) => { now += 100; fn(); } };
     const realNow = Date.now;
     Date.now = () => now;
     try {
       const rows = await openSaveToPlaylistPopup(trigger, doc, fastWin);
       assert.deepEqual(rows, []);
+    } finally {
+      Date.now = realNow;
+    }
+  });
+
+  it('hides the sheet once rows appear so it is not visible while driven', async () => {
+    const trigger = { clicked: 0, click() { this.clicked += 1; } };
+    const row = makeRowButton({ name: 'Comedy' });
+    const sheet = makeStyleTarget();
+    const doc = { querySelectorAll: () => [row], querySelector: () => sheet };
+    await openSaveToPlaylistPopup(trigger, doc, win);
+    assert.equal(sheet.getStyle('opacity'), '0');
+    assert.equal(sheet.getStyle('pointer-events'), 'none');
+  });
+
+  it('does not attempt to hide anything when no rows appear', async () => {
+    const trigger = { clicked: 0, click() { this.clicked += 1; } };
+    let queried = false;
+    const doc = { querySelectorAll: () => [], querySelector: () => { queried = true; return null; } };
+    let now = 0;
+    const fastWin = { setTimeout: (fn) => { now += 100; fn(); } };
+    const realNow = Date.now;
+    Date.now = () => now;
+    try {
+      await openSaveToPlaylistPopup(trigger, doc, fastWin);
+      assert.equal(queried, false);
     } finally {
       Date.now = realNow;
     }

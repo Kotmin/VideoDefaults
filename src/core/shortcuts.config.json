@@ -13,6 +13,11 @@
     "p": "show-playlist-labels"
   },
   "homeUrl": "https://www.youtube.com/",
+  "playlistKeys": {
+    "toggle": " ",
+    "check": "ArrowRight",
+    "uncheck": "ArrowLeft"
+  },
   "speeds": {
     "set-speed-1": 1,
     "set-speed-2": 1.5,

@@ -25,7 +25,9 @@ want via the extension's stored settings, same as any other override.
 | `Esc` | Close overlay | Jump/queue overlay open |
 | Type letters | Fuzzy-filter playlists by name | Playlist picker open |
 | `↑`/`↓` | Move highlight (wraps, includes "+ Create new" as the last row) | Playlist picker open |
-| `Space` | Toggle a checkbox on the highlighted playlist (local only, up to 5) | Playlist picker open |
+| `Space` | Toggle a checkbox on the highlighted playlist (local only, up to 5, configurable via `src/core/shortcuts.config.json`'s `playlistKeys.toggle`) | Playlist picker open |
+| `→` | Check the highlighted playlist (configurable via `playlistKeys.check`) | Playlist picker open |
+| `←` | Uncheck the highlighted playlist (configurable via `playlistKeys.uncheck`) | Playlist picker open |
 | `Enter` | Add to checked playlists, or the highlighted one if none checked, or open create-new | Playlist picker open |
 | `Esc` | Close create-new sub-dialog, or the picker if none open | Playlist picker open |
 

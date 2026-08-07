@@ -8,6 +8,8 @@ import {
   typeChar,
   backspace,
   toggleHighlighted,
+  checkHighlighted,
+  uncheckHighlighted,
   resolveEnter,
   openCreateDialog,
   typeInCreateDialog,
@@ -85,6 +87,42 @@ describe('toggleHighlighted', () => {
     let s = createOverlayState(many);
     for (let i = 0; i < 6; i += 1) {
       s = toggleHighlighted(s);
+      s = moveHighlight(s, 1);
+    }
+    assert.equal(s.checked.size, 5);
+    assert.ok(!s.checked.has('P5'));
+  });
+});
+
+describe('checkHighlighted / uncheckHighlighted', () => {
+  it('checks the highlighted playlist and is a no-op if already checked', () => {
+    const s0 = createOverlayState(PLAYLISTS);
+    const s1 = checkHighlighted(s0);
+    assert.ok(s1.checked.has('Comedy'));
+    const s2 = checkHighlighted(s1);
+    assert.ok(s2.checked.has('Comedy'));
+    assert.equal(s2.checked.size, 1);
+  });
+
+  it('unchecks the highlighted playlist and is a no-op if already unchecked', () => {
+    const s0 = checkHighlighted(createOverlayState(PLAYLISTS));
+    const s1 = uncheckHighlighted(s0);
+    assert.ok(!s1.checked.has('Comedy'));
+    const s2 = uncheckHighlighted(s1);
+    assert.ok(!s2.checked.has('Comedy'));
+  });
+
+  it('does nothing when the create-new row is highlighted', () => {
+    const s0 = moveHighlight(createOverlayState(PLAYLISTS), -1);
+    assert.equal(checkHighlighted(s0).checked.size, 0);
+    assert.equal(uncheckHighlighted(s0).checked.size, 0);
+  });
+
+  it('caps checked selection at 5 and ignores a 6th check', () => {
+    const many = Array.from({ length: 6 }, (_, i) => ({ name: `P${i}` }));
+    let s = createOverlayState(many);
+    for (let i = 0; i < 6; i += 1) {
+      s = checkHighlighted(s);
       s = moveHighlight(s, 1);
     }
     assert.equal(s.checked.size, 5);

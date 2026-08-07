@@ -16,7 +16,7 @@
     } = await import(browser.runtime.getURL('lib/site-adapters/youtube/youtube-site-adapter.js'));
     const { createPlayerAdapter } = await import(browser.runtime.getURL('lib/player-adapters/html5-video-player-adapter.js'));
     const {
-      COMMANDS, SPEED_SHORTCUTS, createShortcutController, generateLabels, filterLabelPairs,
+      COMMANDS, SPEED_SHORTCUTS, PLAYLIST_KEYS, createShortcutController, generateLabels, filterLabelPairs,
     } = await import(browser.runtime.getURL('lib/core/keyboard-shortcuts.js'));
     const { collectJumpTargets, createJumpOverlay } =
       await import(browser.runtime.getURL('lib/ui/jump-overlay.js'));
@@ -27,8 +27,8 @@
     } = await import(browser.runtime.getURL('lib/ui/playlist-popup-driver.js'));
     const { createPlaylistCache } = await import(browser.runtime.getURL('lib/core/playlist-cache.js'));
     const {
-      createOverlayState, moveHighlight, typeChar, backspace, toggleHighlighted, resolveEnter,
-      openCreateDialog, typeInCreateDialog, backspaceInCreateDialog, closeCreateDialog, commitCreatedPlaylist,
+      createOverlayState, moveHighlight, typeChar, backspace, toggleHighlighted, checkHighlighted, uncheckHighlighted,
+      resolveEnter, openCreateDialog, typeInCreateDialog, backspaceInCreateDialog, closeCreateDialog, commitCreatedPlaylist,
       resolveCreatedPlaylistChanges,
     } = await import(browser.runtime.getURL('lib/ui/playlist-overlay-state.js'));
     const {
@@ -296,8 +296,18 @@
           playlistOverlay.render(playlistState);
           return;
         }
-        if (e.key === ' ') {
+        if (e.key === PLAYLIST_KEYS.toggle) {
           playlistState = toggleHighlighted(playlistState);
+          playlistOverlay.render(playlistState);
+          return;
+        }
+        if (e.key === PLAYLIST_KEYS.check) {
+          playlistState = checkHighlighted(playlistState);
+          playlistOverlay.render(playlistState);
+          return;
+        }
+        if (e.key === PLAYLIST_KEYS.uncheck) {
+          playlistState = uncheckHighlighted(playlistState);
           playlistOverlay.render(playlistState);
           return;
         }

@@ -206,24 +206,78 @@ describe('driveCreateNewPlaylist', () => {
   });
 });
 
+function makeCloseableDoc(escapeCloses) {
+  let open = true;
+  const sheet = makeStyleTarget();
+  const dispatched = [];
+  const close = () => { open = false; };
+  return {
+    sheet,
+    dispatched,
+    isOpen: () => open,
+    close,
+    doc: {
+      querySelector: () => (open ? sheet : null),
+      dispatchEvent: (evt) => {
+        dispatched.push(evt);
+        if (evt.type === 'keydown' && evt.key === 'Escape' && escapeCloses) close();
+      },
+    },
+  };
+}
+
+function fastWin(extra = {}) {
+  return {
+    KeyboardEvent: class { constructor(type, init) { this.type = type; Object.assign(this, init); } },
+    setTimeout: (fn) => fn(),
+    ...extra,
+  };
+}
+
 describe('closeSaveToPlaylistPopup', () => {
-  it('dispatches an Escape keydown on the document', () => {
-    let dispatched = null;
-    const doc = { querySelector: () => null, dispatchEvent: (evt) => { dispatched = evt; } };
-    const fakeWin = { KeyboardEvent: class { constructor(type, init) { this.type = type; Object.assign(this, init); } } };
-    closeSaveToPlaylistPopup(doc, fakeWin);
-    assert.equal(dispatched.type, 'keydown');
-    assert.equal(dispatched.key, 'Escape');
+  it('does nothing when no sheet is open', async () => {
+    const doc = { querySelector: () => null, dispatchEvent: () => { throw new Error('should not dispatch'); } };
+    await closeSaveToPlaylistPopup(doc, fastWin());
   });
 
-  it('restores a hidden sheet so the native popup works again next time', () => {
-    const sheet = makeStyleTarget();
+  it('restores hidden styles and dispatches Escape, which closes the sheet', async () => {
+    const { doc, dispatched, isOpen, sheet } = makeCloseableDoc(true);
     sheet.style.setProperty('opacity', '0');
-    sheet.style.setProperty('pointer-events', 'none');
-    const doc = { querySelector: () => sheet, dispatchEvent: () => {} };
-    const fakeWin = { KeyboardEvent: class { constructor(type, init) { this.type = type; Object.assign(this, init); } } };
-    closeSaveToPlaylistPopup(doc, fakeWin);
+    await closeSaveToPlaylistPopup(doc, fastWin());
     assert.equal(sheet.getStyle('opacity'), undefined);
-    assert.equal(sheet.getStyle('pointer-events'), undefined);
+    assert.deepEqual(dispatched.map((e) => e.key), ['Escape']);
+    assert.equal(isOpen(), false);
+  });
+
+  it('falls back to re-clicking the trigger when Escape does not close the sheet', async () => {
+    const { doc, isOpen, close } = makeCloseableDoc(false);
+    const trigger = { clicked: 0, click() { this.clicked += 1; close(); } };
+    let now = 0;
+    const realNow = Date.now;
+    Date.now = () => now;
+    try {
+      const win = fastWin({ setTimeout: (fn) => { now += 100; fn(); } });
+      await closeSaveToPlaylistPopup(doc, win, trigger);
+    } finally {
+      Date.now = realNow;
+    }
+    assert.equal(trigger.clicked, 1);
+    assert.equal(isOpen(), false);
+  });
+
+  it('gives up quietly when neither Escape nor the trigger closes the sheet', async () => {
+    const { doc, isOpen } = makeCloseableDoc(false);
+    const trigger = { clicked: 0, click() { this.clicked += 1; } };
+    let now = 0;
+    const realNow = Date.now;
+    Date.now = () => now;
+    try {
+      const win = fastWin({ setTimeout: (fn) => { now += 100; fn(); } });
+      await closeSaveToPlaylistPopup(doc, win, trigger);
+    } finally {
+      Date.now = realNow;
+    }
+    assert.equal(trigger.clicked, 1);
+    assert.equal(isOpen(), true);
   });
 });

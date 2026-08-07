@@ -173,7 +173,7 @@
       // (name catalog only) for other consumers that don't need membership.
       async function loadPlaylistCatalog(trigger) {
         const rows = await openSaveToPlaylistPopup(trigger, document, window);
-        closeSaveToPlaylistPopup(document, window);
+        await closeSaveToPlaylistPopup(document, window, trigger);
         if (rows.length === 0) return null;
         const playlists = rows.map((r) => ({ name: r.name, selected: r.selected }));
         await playlistCache.write(playlists.map((p) => ({ name: p.name })));
@@ -221,7 +221,7 @@
             if (row.selected !== shouldSelect) togglePlaylistRow(row);
             applied += 1;
           }
-          closeSaveToPlaylistPopup(document, window);
+          await closeSaveToPlaylistPopup(document, window, trigger);
           showPlaylistProgress(document, rect, applied, changes.length);
         }
         await playlistCache.invalidate();
@@ -233,7 +233,7 @@
         if (!trigger) return false;
         await openSaveToPlaylistPopup(trigger, document, window);
         const ok = await driveCreateNewPlaylist(document, window, name);
-        closeSaveToPlaylistPopup(document, window);
+        await closeSaveToPlaylistPopup(document, window, trigger);
         if (ok) await playlistCache.invalidate();
         return ok;
       }

@@ -27,6 +27,22 @@ function hideOpenSheet(doc) {
   sheet.style.setProperty('pointer-events', 'none', 'important');
 }
 
+// Undoes hideOpenSheet's overrides. Reported live: without this, the sheet
+// stays permanently hidden after the first drive — YouTube reuses the same
+// sheet DOM node across opens rather than remounting it, so the leftover
+// !important styles also broke the native Save button, not just our own
+// overlay flow. Called synchronously right before the Escape dispatch in
+// closeSaveToPlaylistPopup so there's no intermediate paint to flash.
+function restoreSheetVisibility(doc) {
+  const sheet = doc.querySelector(SHEET_SELECTOR);
+  if (!sheet) return;
+  sheet.style.removeProperty('position');
+  sheet.style.removeProperty('left');
+  sheet.style.removeProperty('top');
+  sheet.style.removeProperty('opacity');
+  sheet.style.removeProperty('pointer-events');
+}
+
 function parsePlaylistName(ariaLabel) {
   // ponytail: name is the first comma-separated segment of the row's own
   // aria-label ("{name}, {visibility}, {selected-state}", confirmed in probe
@@ -119,5 +135,6 @@ export async function driveCreateNewPlaylist(doc, win, name) {
 // self-healing best-effort here, not independently confirmed for this
 // specific sheet by a live click.
 export function closeSaveToPlaylistPopup(doc, win) {
+  restoreSheetVisibility(doc);
   doc.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
 }

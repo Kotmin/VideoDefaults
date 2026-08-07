@@ -57,7 +57,10 @@ describe('findCreateNewButton', () => {
 function makeStyleTarget() {
   const style = new Map();
   return {
-    style: { setProperty: (prop, value) => style.set(prop, value) },
+    style: {
+      setProperty: (prop, value) => style.set(prop, value),
+      removeProperty: (prop) => style.delete(prop),
+    },
     getStyle: (prop) => style.get(prop),
   };
 }
@@ -206,10 +209,21 @@ describe('driveCreateNewPlaylist', () => {
 describe('closeSaveToPlaylistPopup', () => {
   it('dispatches an Escape keydown on the document', () => {
     let dispatched = null;
-    const doc = { dispatchEvent: (evt) => { dispatched = evt; } };
+    const doc = { querySelector: () => null, dispatchEvent: (evt) => { dispatched = evt; } };
     const fakeWin = { KeyboardEvent: class { constructor(type, init) { this.type = type; Object.assign(this, init); } } };
     closeSaveToPlaylistPopup(doc, fakeWin);
     assert.equal(dispatched.type, 'keydown');
     assert.equal(dispatched.key, 'Escape');
+  });
+
+  it('restores a hidden sheet so the native popup works again next time', () => {
+    const sheet = makeStyleTarget();
+    sheet.style.setProperty('opacity', '0');
+    sheet.style.setProperty('pointer-events', 'none');
+    const doc = { querySelector: () => sheet, dispatchEvent: () => {} };
+    const fakeWin = { KeyboardEvent: class { constructor(type, init) { this.type = type; Object.assign(this, init); } } };
+    closeSaveToPlaylistPopup(doc, fakeWin);
+    assert.equal(sheet.getStyle('opacity'), undefined);
+    assert.equal(sheet.getStyle('pointer-events'), undefined);
   });
 });

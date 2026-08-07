@@ -177,17 +177,19 @@ const NAME_INPUT_SELECTOR = 'yt-create-playlist-dialog-form-view-model textarea'
 const SUBMIT_BUTTON_SELECTOR = '.ytSpecDialogLayoutFooterContainer .ytPanelFooterViewModelPrimaryButton button';
 
 describe('driveCreateNewPlaylist', () => {
-  it('clicks create-new, fills the title field, and submits via the dialog button', async () => {
+  it('clicks create-new, fills the title field, submits, and confirms the dialog closed', async () => {
     const openBtn = { clicked: 0, click() { this.clicked += 1; } };
-    const submitBtn = { clicked: 0, click() { this.clicked += 1; } };
     const input = makeInputElement();
+    let dialogOpen = true;
+    const submitBtn = { clicked: 0, click() { this.clicked += 1; dialogOpen = false; } };
     const doc = {
       querySelector: (sel) => {
         if (sel === OPEN_BUTTON_SELECTOR) return openBtn;
-        if (sel === NAME_INPUT_SELECTOR) return input;
+        if (sel === NAME_INPUT_SELECTOR) return dialogOpen ? input : null;
         if (sel === SUBMIT_BUTTON_SELECTOR) return submitBtn;
         return null;
       },
+      dispatchEvent: () => { throw new Error('should not dispatch Escape when the dialog closed on its own'); },
     };
     const ok = await driveCreateNewPlaylist(doc, makeCreateNewWin(), 'New Stuff');
     assert.equal(ok, true);
@@ -196,6 +198,33 @@ describe('driveCreateNewPlaylist', () => {
     assert.equal(input.focused, true);
     assert.deepEqual(input.dispatched.map((e) => e.type), ['input']);
     assert.equal(submitBtn.clicked, 1);
+  });
+
+  it('falls back to Escape when the dialog does not close after submitting', async () => {
+    const openBtn = { clicked: 0, click() { this.clicked += 1; } };
+    const submitBtn = { clicked: 0, click() { this.clicked += 1; } };
+    const input = makeInputElement();
+    const dispatched = [];
+    const doc = {
+      querySelector: (sel) => {
+        if (sel === OPEN_BUTTON_SELECTOR) return openBtn;
+        if (sel === NAME_INPUT_SELECTOR) return input;
+        if (sel === SUBMIT_BUTTON_SELECTOR) return submitBtn;
+        return null;
+      },
+      dispatchEvent: (evt) => dispatched.push(evt),
+    };
+    let now = 0;
+    const realNow = Date.now;
+    Date.now = () => now;
+    try {
+      const fastWin = makeCreateNewWin({ setTimeout: (fn) => { now += 100; fn(); } });
+      const ok = await driveCreateNewPlaylist(doc, fastWin, 'New Stuff');
+      assert.equal(ok, true);
+    } finally {
+      Date.now = realNow;
+    }
+    assert.deepEqual(dispatched.map((e) => e.key), ['Escape']);
   });
 
   it('returns false when the create-new button is not found', async () => {

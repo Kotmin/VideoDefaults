@@ -129,6 +129,17 @@ function waitForCreateInput(doc, win) {
   });
 }
 
+function waitForCreateDialogClosed(doc, win) {
+  return new Promise((resolve) => {
+    const deadline = Date.now() + CLOSE_VERIFY_TIMEOUT_MS;
+    (function poll() {
+      if (!doc.querySelector(CREATE_NAME_INPUT_SELECTOR)) return resolve(true);
+      if (Date.now() >= deadline) return resolve(false);
+      win.setTimeout(poll, CLOSE_VERIFY_POLL_MS);
+    }());
+  });
+}
+
 // Fills the title field of the real create-playlist dialog and clicks its
 // own submit button — reported live: dispatching an Enter keydown never
 // worked here because the field is a <textarea> (Enter inserts a newline,
@@ -137,9 +148,12 @@ function waitForCreateInput(doc, win) {
 // ever typed and YouTube's own dialog was left sitting open empty.
 // Leaves the dialog's visibility dropdown untouched — it already defaults
 // to Private, which is the plugin's intended default (K, 2026-08-07).
-// Self-healing: resolves false without throwing if the field or submit
-// button never appear, so the caller can leave the overlay state untouched
-// on failure.
+// Reported live: the dialog can also stay open after a successful submit
+// (creation is async), same shape as the sheet's own unreliable close — so
+// it's verified the same way, falling back to Escape rather than trusting
+// the click closed it. Self-healing: resolves false without throwing if the
+// field or submit button never appear, so the caller can leave the overlay
+// state untouched on failure.
 export async function driveCreateNewPlaylist(doc, win, name) {
   if (!activateCreateNew(doc)) return false;
   const input = await waitForCreateInput(doc, win);
@@ -150,6 +164,9 @@ export async function driveCreateNewPlaylist(doc, win, name) {
   const submit = doc.querySelector(CREATE_DIALOG_SUBMIT_SELECTOR);
   if (!submit) return false;
   submit.click();
+  if (!(await waitForCreateDialogClosed(doc, win))) {
+    doc.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  }
   return true;
 }
 

@@ -36,3 +36,5 @@ If you add or change a shortcut:
 ## Tests
 
 Unit tests run via Node's built-in test runner (`node --test tests/unit/*.test.js`, no test framework dependency). Add or update tests for any behavior change in `src/`.
+
+Code that drives the live page (native popups, DOM scraping, keyboard dispatch) must be a plain function/factory in `src/` taking `document`/`window` as parameters — never written directly inside `apps/shared/src/content/content.js`'s closure. That closure isn't imported by any test, so anything left in it is untested by definition; see `src/ui/playlist-controller.js` (tested in `tests/unit/playlist-controller.test.js` with fake `doc`/`win`/DOM-node objects) for the pattern, and keep `content.js` itself down to wiring — importing modules, constructing them, and forwarding events.

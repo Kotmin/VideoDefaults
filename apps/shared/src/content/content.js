@@ -34,6 +34,7 @@
     const {
       createPlaylistOverlay, showPlaylistProgress, finishPlaylistProgress, showNotLoggedInBadge,
     } = await import(browser.runtime.getURL('lib/ui/playlist-overlay.js'));
+    const { createPlaylistController } = await import(browser.runtime.getURL('lib/ui/playlist-controller.js'));
 
     const isMac = isMacPlatform(navigator);
     let settings = null;
@@ -157,185 +158,17 @@
         labelState = { pairs, typed: '', mode: 'queue' };
       }
 
-      const playlistOverlay = createPlaylistOverlay(document);
-      const playlistCache = createPlaylistCache(browser);
-      let playlistState = null;
-
-      function closePlaylistOverlay() {
-        playlistOverlay.close();
-        playlistState = null;
-      }
-
-      // Always scrapes fresh: membership (which playlists already contain
-      // this video) is per-video, not cacheable, and the popup is now hidden
-      // while driven (see playlist-popup-driver.js) so there's no visible
-      // cost to opening it on every overlay open. The cache is still written
-      // (name catalog only) for other consumers that don't need membership.
-      async function loadPlaylistCatalog(trigger) {
-        const rows = await openSaveToPlaylistPopup(trigger, document, window);
-        await closeSaveToPlaylistPopup(document, window, trigger);
-        if (rows.length === 0) return null;
-        const playlists = rows.map((r) => ({ name: r.name, selected: r.selected }));
-        await playlistCache.write(playlists.map((p) => ({ name: p.name })));
-        return playlists;
-      }
-
-      // Feature gated to logged-in users; both isLoggedIn and the trigger
-      // finder are unverified best-effort (see youtube-site-adapter.js),
-      // so a wrong or missing signal self-heals to a silent no-op here.
-      async function openPlaylistOverlay() {
-        if (!isLoggedIn(document)) {
-          const videoEl = findVideoElement(document);
-          const rect = videoEl ? videoEl.getBoundingClientRect() : { top: 0, left: 0 };
-          showNotLoggedInBadge(document, rect);
-          return;
-        }
-        const trigger = findSaveToPlaylistTrigger(document);
-        if (!trigger) return;
-        const playlists = await loadPlaylistCatalog(trigger);
-        if (!playlists) return;
-        playlistState = createOverlayState(playlists);
-        playlistOverlay.render(playlistState);
-      }
-
-      // Opens the native popup once and toggles every row within that same
-      // session (issue #16 resolved design — no batch confirm exists
-      // natively, but nothing requires closing/reopening between rows
-      // either). Reopening per playlist was the original design; K reported
-      // it as slow and visibly flickering the native popup — each
-      // open/close round trip pays the close-verification wait, N times.
-      // Idempotent per row: only clicks when the row's live state disagrees
-      // with the desired one, since the native button is a plain toggle.
-      async function addVideoToPlaylists(toAdd, toRemove = []) {
-        const changes = [
-          ...toAdd.map((name) => ({ name, shouldSelect: true })),
-          ...toRemove.map((name) => ({ name, shouldSelect: false })),
-        ];
-        if (changes.length === 0) return;
-        const trigger = findSaveToPlaylistTrigger(document);
-        if (!trigger) return;
-        const videoEl = findVideoElement(document);
-        const rect = videoEl ? videoEl.getBoundingClientRect() : { top: 0, left: 0 };
-        let applied = 0;
-        showPlaylistProgress(document, rect, 0, changes.length);
-        const rows = await openSaveToPlaylistPopup(trigger, document, window);
-        for (const { name, shouldSelect } of changes) {
-          const row = rows.find((r) => r.name === name);
-          if (row) {
-            if (row.selected !== shouldSelect) togglePlaylistRow(row);
-            applied += 1;
-          }
-          showPlaylistProgress(document, rect, applied, changes.length);
-        }
-        await closeSaveToPlaylistPopup(document, window, trigger);
-        await playlistCache.invalidate();
-        finishPlaylistProgress(document, rect, applied, changes.length);
-      }
-
-      // Leaves the sheet hidden-but-open on success rather than closing it
-      // here: the caller always follows a successful create with
-      // addVideoToPlaylists (the new playlist is always in its toAdd, since
-      // commitCreatedPlaylist checks it while it starts unselected), which
-      // reopens the same sheet immediately anyway. Reported live: closing
-      // here and reopening a beat later left the sheet visibly stuck open —
-      // the redundant close/reopen round-trip was racing the trigger-click
-      // close fallback against the immediate reopen. Only close here on
-      // failure, since then nothing else will touch the sheet afterward.
-      async function createNewPlaylistOnSite(name) {
-        const trigger = findSaveToPlaylistTrigger(document);
-        if (!trigger) return false;
-        await openSaveToPlaylistPopup(trigger, document, window);
-        const ok = await driveCreateNewPlaylist(document, window, name);
-        if (!ok) await closeSaveToPlaylistPopup(document, window, trigger);
-        if (ok) await playlistCache.invalidate();
-        return ok;
-      }
-
-      function handlePlaylistKey(e) {
-        e.preventDefault();
-        e.stopPropagation();
-
-        if (e.key === 'Escape') {
-          if (playlistState.subDialog) {
-            playlistState = closeCreateDialog(playlistState);
-            playlistOverlay.render(playlistState);
-          } else {
-            closePlaylistOverlay();
-          }
-          return;
-        }
-
-        if (playlistState.subDialog) {
-          if (e.key === 'Backspace') {
-            playlistState = backspaceInCreateDialog(playlistState);
-            playlistOverlay.render(playlistState);
-            return;
-          }
-          if (e.key === 'Enter') {
-            const name = playlistState.subDialog.query.trim();
-            if (name === '') return;
-            const finalState = commitCreatedPlaylist(playlistState, name);
-            closePlaylistOverlay();
-            createNewPlaylistOnSite(name).then((ok) => {
-              if (!ok) return;
-              const { toAdd, toRemove } = resolveCreatedPlaylistChanges(finalState);
-              addVideoToPlaylists(toAdd, toRemove);
-            });
-            return;
-          }
-          if (e.key.length === 1) {
-            playlistState = typeInCreateDialog(playlistState, e.key);
-            playlistOverlay.render(playlistState);
-          }
-          return;
-        }
-
-        if (e.key === 'ArrowDown') {
-          playlistState = moveHighlight(playlistState, 1);
-          playlistOverlay.render(playlistState);
-          return;
-        }
-        if (e.key === 'ArrowUp') {
-          playlistState = moveHighlight(playlistState, -1);
-          playlistOverlay.render(playlistState);
-          return;
-        }
-        if (e.key === 'Backspace') {
-          playlistState = backspace(playlistState);
-          playlistOverlay.render(playlistState);
-          return;
-        }
-        if (e.key === PLAYLIST_KEYS.toggle) {
-          playlistState = toggleHighlighted(playlistState);
-          playlistOverlay.render(playlistState);
-          return;
-        }
-        if (e.key === PLAYLIST_KEYS.check) {
-          playlistState = checkHighlighted(playlistState);
-          playlistOverlay.render(playlistState);
-          return;
-        }
-        if (e.key === PLAYLIST_KEYS.uncheck) {
-          playlistState = uncheckHighlighted(playlistState);
-          playlistOverlay.render(playlistState);
-          return;
-        }
-        if (e.key === 'Enter') {
-          const result = resolveEnter(playlistState);
-          if (result.type === 'create-new') {
-            playlistState = openCreateDialog(playlistState);
-            playlistOverlay.render(playlistState);
-            return;
-          }
-          closePlaylistOverlay();
-          addVideoToPlaylists(result.toAdd, result.toRemove);
-          return;
-        }
-        if (e.key.length === 1) {
-          playlistState = typeChar(playlistState, e.key);
-          playlistOverlay.render(playlistState);
-        }
-      }
+      const playlistController = createPlaylistController(document, window, {
+        findVideoElement, findSaveToPlaylistTrigger, isLoggedIn,
+        playlistCache: createPlaylistCache(browser),
+        playlistOverlay: createPlaylistOverlay(document),
+        openSaveToPlaylistPopup, togglePlaylistRow, driveCreateNewPlaylist, closeSaveToPlaylistPopup,
+        showPlaylistProgress, finishPlaylistProgress, showNotLoggedInBadge,
+        createOverlayState, moveHighlight, typeChar, backspace, toggleHighlighted, checkHighlighted, uncheckHighlighted,
+        resolveEnter, openCreateDialog, typeInCreateDialog, backspaceInCreateDialog, closeCreateDialog, commitCreatedPlaylist,
+        resolveCreatedPlaylistChanges,
+        playlistKeys: PLAYLIST_KEYS,
+      });
 
       function handleLabelKey(e) {
         e.preventDefault();
@@ -372,8 +205,8 @@
           if (!['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) handleLabelKey(e);
           return;
         }
-        if (playlistState) {
-          if (!['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) handlePlaylistKey(e);
+        if (playlistController.isOpen()) {
+          if (!['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) playlistController.handleKey(e);
           return;
         }
 
@@ -395,7 +228,7 @@
         if (result.command === COMMANDS.GO_HOME) goHome();
         if (result.command === COMMANDS.SHOW_JUMP_LABELS) openOverlay();
         if (result.command === COMMANDS.SHOW_QUEUE_LABELS) openQueueOverlay();
-        if (result.command === COMMANDS.SHOW_PLAYLIST_LABELS) openPlaylistOverlay();
+        if (result.command === COMMANDS.SHOW_PLAYLIST_LABELS) playlistController.open();
         if (result.command in SPEED_SHORTCUTS) setDefaultSpeedFromShortcut(SPEED_SHORTCUTS[result.command]);
         if (result.command === COMMANDS.TOGGLE_AUTO_APPLY) toggleAutoApply();
       }, true);

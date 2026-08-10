@@ -4,6 +4,88 @@ Status: implemented 2026-07-17 (all editions; shared source). Playlist picker
 (`Ctrl+A, Shift+P`) added 2026-08-07 (issue #16) — see below; blocked on two
 unverified DOM assumptions, see `docs/ai/questions-for-K.md`.
 
+## Configuration
+
+Everything: prefix, chords, `shiftChords`, speeds, `homeUrl`, is
+user-remappable via settings, no code change needed. The default chords are
+deliberately chosen to never collide with YouTube's own single-key shortcuts
+(`k`, `j`, `l`, `f`, `m`, digits, arrows, …, see `RESERVED_YOUTUBE_KEYS`):
+they only ever fire as a **prefix + key combo**, so the same letter that's a
+YouTube shortcut on its own can safely be a chord after the prefix. The
+prefix's fallback also adapts to the platform: macOS resolves to `⌘A`
+(`{ key: 'a', ctrl: false, meta: true }`) automatically, Windows/Linux to
+`Ctrl+A`, detected via `isMacPlatform()` (`src/core/platform.js`) and only
+applied when no `keymap.prefix` is already stored (an existing stored value,
+valid or user-set, always wins; `DEFAULT_KEYMAP` itself stays OS-agnostic).
+
+### Remap examples
+
+Overrides live in `browser.storage.local` under
+`videodefaults_settings.keymap`, sanitized by `normalizeKeymap()` on every
+read, and merged onto the defaults key-by-key: a partial override only
+touches what you set, everything else keeps working:
+
+- **Change the prefix**, e.g. to `Ctrl+Space` instead of `Ctrl+A`:
+  ```json
+  { "prefix": { "key": " ", "ctrl": true, "meta": false } }
+  ```
+- **Remap a single chord**, e.g. move "go home" off `y` onto `g`, leaving
+  every other default chord (`o`, `p`, `v`, `b`, `n`, `h`) untouched:
+  ```json
+  { "chords": { "g": "go-home" } }
+  ```
+- **Non-QWERTY or additional keyboard**: `key` matches `evt.key`, the
+  character your active layout actually produces, not the physical key
+  position. On an AZERTY layout the physical `Ctrl+A` key types `q`, so
+  either set `prefix.key` to whatever character that key produces on your
+  layout, or point it at a different physical key entirely:
+  ```json
+  { "prefix": { "key": "q", "ctrl": true, "meta": false } }
+  ```
+
+Full validation rules: `prefix` must include `ctrl` or `meta` (a plain-key
+prefix is rejected so single-key YouTube shortcuts can never be shadowed);
+`chords`/`shiftChords` keys must be a single a-z0-9 character mapping to a
+known command; `homeUrl` must be `https://*.youtube.com`; `speeds` values are
+validated by `validateSpeed()` (`src/core/speed.js`) and fall back to that
+command's default otherwise. Settings changes apply live (storage listener);
+no reload needed.
+
+### Defaults reference
+
+`DEFAULT_KEYMAP` and the default speed-shortcut values are sourced from the
+checked-in `src/core/shortcuts.config.json`, sanitized at module load through
+the same `normalizeKeymap()` / `normalizeSpeedShortcuts()` functions used for
+storage-provided overrides (`src/core/keyboard-shortcuts.js`): retuning a
+default is a one-file edit:
+
+```json
+{
+  "prefix": { "key": "a", "ctrl": true, "meta": false },
+  "chords": {
+    "o": "show-jump-labels",
+    "p": "show-queue-labels",
+    "y": "go-home",
+    "v": "set-speed-1",
+    "b": "set-speed-2",
+    "n": "set-speed-3",
+    "h": "toggle-auto-apply"
+  },
+  "shiftChords": {
+    "p": "show-playlist-labels"
+  },
+  "homeUrl": "https://www.youtube.com/",
+  "speeds": {
+    "set-speed-1": 1,
+    "set-speed-2": 1.5,
+    "set-speed-3": 2.0
+  }
+}
+```
+
+No options UI yet: edit via storage or wait for the options page
+(see `docs/ai/questions-for-K.md` Q8).
+
 ## Model
 
 A prefix chord, like tmux: press the **prefix** (default `Ctrl+A`), then a
@@ -181,74 +263,6 @@ real site today** (both flagged `UNVERIFIED` in source, see
 2. `isLoggedIn` (`#avatar-btn` presence) and the post-create-new inline-field
    shape in `driveCreateNewPlaylist` are best-effort assumptions, not
    independently DOM-captured.
-
-## Configuration
-
-`DEFAULT_KEYMAP` and the default speed-shortcut values are sourced from the
-checked-in `src/core/shortcuts.config.json`, sanitized at module load through
-the same `normalizeKeymap()` / `normalizeSpeedShortcuts()` functions used for
-storage-provided overrides (`src/core/keyboard-shortcuts.js`) — retuning a
-shortcut key or a speed value is a one-file edit, no code change needed:
-
-```json
-{
-  "prefix": { "key": "a", "ctrl": true, "meta": false },
-  "chords": {
-    "o": "show-jump-labels",
-    "p": "show-queue-labels",
-    "y": "go-home",
-    "v": "set-speed-1",
-    "b": "set-speed-2",
-    "n": "set-speed-3",
-    "h": "toggle-auto-apply"
-  },
-  "shiftChords": {
-    "p": "show-playlist-labels"
-  },
-  "homeUrl": "https://www.youtube.com/",
-  "speeds": {
-    "set-speed-1": 1,
-    "set-speed-2": 1.5,
-    "set-speed-3": 2.0
-  }
-}
-```
-
-The keymap can also be overridden per-install in settings
-(`browser.storage.local`, key `videodefaults_settings.keymap`), sanitized by
-the same `normalizeKeymap()` on every read:
-
-- `prefix` must include `ctrl` or `meta` (macOS users can set
-  `{ "key": "a", "ctrl": false, "meta": true }` for `⌘A`); a plain-key prefix
-  is rejected so single-key YouTube shortcuts can never be shadowed.
-  `RESERVED_YOUTUBE_KEYS` documents YouTube's own bindings.
-- `chords` maps single keys to known commands; unknown commands are dropped.
-  A stored override is merged onto the defaults key-by-key, not swapped in
-  wholesale — a partial override (e.g. only remapping `o`) keeps every other
-  default chord (`p`, `y`, `v`, `b`, `n`, `h`) working.
-- `shiftChords` is a separate map, same merge/validation rules as `chords`,
-  looked up only when the chord key is pressed with `Shift` held — pressing
-  `p` with Shift does **not** fall back to the unshifted `chords.p`
-  (`show-queue-labels`) if no `shiftChords.p` entry exists; it's simply
-  unbound.
-- `homeUrl` must be an `https://*.youtube.com` URL (blocks `javascript:` and
-  third-party redirect targets).
-- `speeds` maps each `set-speed-*` command to a numeric value validated by
-  `validateSpeed()` (`src/core/speed.js`); out-of-range or non-numeric entries
-  fall back to that command's default (see table above) — exposed as
-  `SPEED_SHORTCUTS`.
-- Settings changes apply live (storage listener); no reload needed.
-
-The prefix's fallback default is platform-aware: on macOS it resolves to
-`{ key: 'a', ctrl: false, meta: true }` (`⌘A`) instead of the OS-agnostic
-`Ctrl+A`, detected via `isMacPlatform()` (`src/core/platform.js`) and threaded
-through as the `isMac` parameter on `normalizeKeymap()` / `applyDefaults()` /
-`migrateSettings()`. This only applies when no `keymap.prefix` is already
-stored — an existing stored value (valid or user-set) always wins, and
-`DEFAULT_KEYMAP` itself stays OS-agnostic (`isMac` defaults to `false`).
-
-No options UI yet — edit via storage or wait for the options page
-(see `docs/ai/questions-for-K.md` Q8).
 
 ## Verification
 

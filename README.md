@@ -27,15 +27,16 @@ Full reference: [docs/keyboard-quickstart.md](docs/keyboard-quickstart.md).
 
 Edit `src/core/shortcuts.config.json` to change the prefix key, any chord binding, or the three preset speed values. Speed values must fall within the allowed range (`0.25`–`4.0`), but only use values YouTube itself will actually honor for your account — e.g. speeds above `2x` are a YouTube Premium feature, so a non-Premium account silently caps at `2x` regardless of what's configured here. Respect the platform's own limits when picking a value. Details: [docs/specs/keyboard-shortcuts.md](docs/specs/keyboard-shortcuts.md).
 
-## Status
+## Browser Support
 
-Active development on `dev` branch. Also works on Chromium-based browsers.
+Active development on `dev` branch.
 
 | Browser | Status | Listing |
 | --- | --- | --- |
 | 🦊 Firefox (AMO) | Published | [addons.mozilla.org/.../videodefaults](https://addons.mozilla.org/en-US/firefox/addon/videodefaults/) |
 | 🌐 Chrome (Web Store) | Published | [chromewebstore.google.com/.../videodefaults](https://chromewebstore.google.com/detail/videodefaults/olbdclkanolgkhfghooecilkhbghadob) |
-| 🟦 Edge (Add-ons) | Not yet submitted | — |
+| 🟦 Edge | Not yet submitted | [chromewebstore.google.com/.../videodefaults](https://chromewebstore.google.com/detail/videodefaults/olbdclkanolgkhfghooecilkhbghadob) (Chromium-based, requires enabling "Allow extensions from other stores" in `edge://extensions`) |
+| 🧭 Arc | Not yet submitted | [chromewebstore.google.com/.../videodefaults](https://chromewebstore.google.com/detail/videodefaults/olbdclkanolgkhfghooecilkhbghadob) (Chromium-based, installs directly, no extra setting needed) |
 
 ## Requirements
 

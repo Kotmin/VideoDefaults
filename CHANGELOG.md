@@ -7,8 +7,15 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-10
+
 ### Added
-- Playlist picker: `Ctrl+A, Shift+P` opens a fuzzy-search overlay to add the current watch-page video to one or more playlists, or create a new one, without leaving the keyboard. Gated to logged-in users; catalog is cached across tabs. Blocked from working against the live site until the native "Save" trigger button's selector is confirmed (see `docs/ai/questions-for-K.md`).
+- Playlist picker: `Ctrl+A, Shift+P` opens a fuzzy-search overlay to add the current watch-page video to one or more playlists, or create a new one, without leaving the keyboard. Gated to logged-in users; catalog is cached across tabs. Pre-checks playlists the video already belongs to and supports removing it from them in the same session. Toggle/check/uncheck keys and arrow-driven scroll-follow are configurable.
+- Unit coverage for the playlist orchestration logic (`src/ui/playlist-controller.js`), extracted from `content.js`'s previously untested closure so the open/close sequencing, idempotent toggling, and create-then-add flow are verified by `node --test` instead of only by live-site manual testing.
+
+### Fixed
+- Native "Save to playlist" sheet is hidden while driven, verified closed (falling back to a trigger re-click), and restored on close, instead of flashing visibly through each scripted step.
+- Create-new-playlist sub-dialog now drives the real native dialog (typing, submit, Cancel-button close) instead of a phantom field, and no longer performs a redundant close after a successful create.
 
 ## [0.2.0] - 2026-08-06
 

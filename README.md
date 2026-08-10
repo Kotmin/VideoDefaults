@@ -35,8 +35,13 @@ Active development on `dev` branch.
 | --- | --- | --- |
 | 🦊 Firefox (AMO) | Published | [addons.mozilla.org/.../videodefaults](https://addons.mozilla.org/en-US/firefox/addon/videodefaults/) |
 | 🌐 Chrome (Web Store) | Published | [chromewebstore.google.com/.../videodefaults](https://chromewebstore.google.com/detail/videodefaults/olbdclkanolgkhfghooecilkhbghadob) |
-| 🟦 Edge | Not yet submitted | [chromewebstore.google.com/.../videodefaults](https://chromewebstore.google.com/detail/videodefaults/olbdclkanolgkhfghooecilkhbghadob) (Chromium-based, requires enabling "Allow extensions from other stores" in `edge://extensions`) |
-| 🧭 Arc | Not yet submitted | [chromewebstore.google.com/.../videodefaults](https://chromewebstore.google.com/detail/videodefaults/olbdclkanolgkhfghooecilkhbghadob) (Chromium-based, installs directly, no extra setting needed) |
+| 🟦 Edge | Unofficial* | [chromewebstore.google.com/.../videodefaults](https://chromewebstore.google.com/detail/videodefaults/olbdclkanolgkhfghooecilkhbghadob) |
+| 🧭 Arc | Unofficial* | [chromewebstore.google.com/.../videodefaults](https://chromewebstore.google.com/detail/videodefaults/olbdclkanolgkhfghooecilkhbghadob) |
+
+\* Not yet submitted to Edge Add-ons or Arc's own store. Both are
+Chromium-based and can install the Chrome Web Store listing above instead.
+Edge requires enabling "Allow extensions from other stores" in
+`edge://extensions` first; Arc installs directly, no extra setting needed.
 
 ## Requirements
 

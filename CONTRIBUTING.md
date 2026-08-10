@@ -25,6 +25,13 @@ Both must pass before opening a PR.
 
 Conventional commits: `type(scope): description`, types `feat fix docs test refactor chore ci build perf`. Keep commits atomic — one logical change per commit, only the files it actually touches.
 
+## Versioning
+
+[Semantic Versioning](https://semver.org/). Default bump for a release PR to `main`:
+
+- **Minor** (`0.X.0`) — a feature, new shortcut, layout change, or other user-visible addition.
+- **Patch** (`0.0.X`) — a fix or other change with no new user-facing capability.
+
 ## Keyboard shortcuts
 
 If you add or change a shortcut:

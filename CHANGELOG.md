@@ -7,6 +7,10 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+- Queue overlay ("Add to queue") stopped working everywhere: YouTube moved `role="menuitem"` off the popup item wrapper onto its inner button/link, so the item was never found after the trigger opened the menu.
+- Playlist picker (`Ctrl+A, Shift+P`) no-op'd on the Shorts standalone player; it now also checks the Shorts header "..." menu for the Save-to-playlist trigger (best-effort, not yet live-confirmed — see `docs/ai/questions-for-K.md`).
+
 ## [0.3.0] - 2026-08-10
 
 ### Added

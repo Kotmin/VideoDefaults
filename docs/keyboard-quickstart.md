@@ -13,7 +13,7 @@ want via the extension's stored settings, same as any other override.
 | `Ctrl+A` | Prefix — arms the next key as a command (default binding, configurable) | Global |
 | `Ctrl+A` then `o` | Open jump overlay (labels clickable elements) | Global |
 | `Ctrl+A` then `p` | Open queue overlay (labels videos with an "Add to queue" option; typing a label adds that video next) | Global |
-| `Ctrl+A` then `Shift+P` | Open playlist picker for the current video (fuzzy-search playlists, checkbox multi-add, create new) — watch page only, requires being logged in | Watch page |
+| `Ctrl+A` then `Shift+P` | Open playlist picker for the current video (fuzzy-search playlists, checkbox multi-add, create new) — requires being logged in | Watch page, and Shorts on a best-effort basis (see issue #20) |
 | `Ctrl+A` then `y` | Go home (click YouTube logo, or navigate to configured home URL) | Global |
 | `Ctrl+A` then `v` | Set playback speed to preset 1 (default `1×`) | Global |
 | `Ctrl+A` then `b` | Set playback speed to preset 2 (default `1.5×`) | Global |

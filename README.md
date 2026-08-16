@@ -12,7 +12,7 @@ Press `Ctrl+A`, then a command key (tmux-style prefix — outside that window ev
 | --- | --- |
 | `Ctrl+A` `o` | Open jump overlay (labels clickable elements) |
 | `Ctrl+A` `p` | Open queue overlay (add a video to the Up Next queue) |
-| `Ctrl+A` `Shift+P` | Open playlist picker for the current video (fuzzy-search, multi-add, create new) — watch page only, requires being logged in |
+| `Ctrl+A` `Shift+P` | Open playlist picker for the current video (fuzzy-search, multi-add, create new) — watch page, and Shorts on a best-effort basis, requires being logged in |
 | `Ctrl+A` `y` | Go home |
 | `Ctrl+A` `v` | Set speed to preset 1 (default `1x`) |
 | `Ctrl+A` `b` | Set speed to preset 2 (default `1.5x`) |

@@ -41,8 +41,25 @@ export function isLoggedIn(document) {
 // #flexible-item-buttons — untested against a logged-in session or Shorts
 // layout, where another button (e.g. Clip) might share that wrapper.
 // Self-heals to a missed trigger (openPlaylistOverlay no-ops) if wrong.
+//
+// ponytail: the Shorts fallback below (`ytd-reel-player-header-renderer
+// ytd-menu-renderer button`) is derived from a captured Shorts-page JSON
+// snapshot's renderer names, not a live/rendered DOM — this sandbox has no
+// working headless browser (see docs/probes/save-trigger-dom-findings.md).
+// The JSON confirms `overlay.reelPlayerOverlayRenderer
+// .reelPlayerHeaderSupportedRenderers.reelPlayerHeaderRenderer` sits next to
+// a sibling `menu.menuRenderer` whose items include "Save to playlist", and
+// this codebase's own established `<FooRenderer>` -> `ytd-foo-renderer`
+// naming convention (see `ytd-menu-service-item-renderer`, `ytd-video-renderer`
+// in src/ui/queue-overlay.js) is the sole basis for the DOM tag names used
+// here. Best-effort, self-heals to a missed trigger (openPlaylistOverlay
+// no-ops) if wrong. Needs live confirmation — see issue #20 and
+// docs/ai/questions-for-K.md.
+const SHORTS_SAVE_TRIGGER_SELECTOR = 'ytd-reel-player-header-renderer ytd-menu-renderer button';
+
 export function findSaveToPlaylistTrigger(document) {
-  return document.querySelector('#flexible-item-buttons > yt-button-view-model button[aria-label]');
+  return document.querySelector('#flexible-item-buttons > yt-button-view-model button[aria-label]')
+    ?? document.querySelector(SHORTS_SAVE_TRIGGER_SELECTOR);
 }
 
 export function createYouTubeSiteAdapter(document, window) {

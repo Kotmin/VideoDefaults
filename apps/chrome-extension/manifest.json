@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "VideoDefaults",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Preserves default video playback settings, starting with YouTube playback speed.",
   "permissions": [
     "storage"

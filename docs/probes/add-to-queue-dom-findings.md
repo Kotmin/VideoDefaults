@@ -292,3 +292,25 @@ genuinely never replaces the node — it falls back to clicking whatever's there
 pre-existing behavior rather than failing outright. Covered by two new unit tests in
 `tests/unit/queue-overlay.test.js`: one simulating a poll that returns the stale node for a
 couple of ticks before the fresh one appears, one simulating a node that never changes at all.
+
+## Follow-up: YouTube moved `role="menuitem"` off the item wrapper (2026-08-16)
+
+User reported the queue overlay regressing to a no-op: the "..." trigger still opened a popup
+(visible only as a brief touch-feedback ripple), but no video was ever added. Captured a fresh
+live DOM (`playwright` launched directly per [[feedback_firefox_testing]] — the `mcp__playwright__*`
+tools still fail to launch a browser in this sandbox) against a real watch page.
+
+Root cause: `yt-list-item-view-model`, which previously carried `role="menuitem"` itself, now
+carries `role="presentation"` — the role moved to its inner interactive child
+(`<button role="menuitem">` for "Add to queue", confirmed `<a role="menuitem">` for
+"Save to playlist" when signed out). `QUEUE_MENU_ITEM_SELECTOR`'s view-model branch
+(`yt-list-item-view-model[role="menuitem"]`) therefore matched nothing, so
+`waitForFreshMenuItem` always timed out and `activateQueueTarget` returned `false` without
+clicking anything — the popup opening/closing is genuine YouTube behavior, not our code doing
+anything wrong up to that point.
+
+Fix: select the descendant instead of the wrapper —
+`yt-list-item-view-model [role="menuitem"]` (space, not attribute-on-self). Position-0 is still
+"Add to queue" in the new shape; verified live end-to-end (trigger click → item found → item
+click → `ytd-playlist-panel-renderer` appears). The legacy `ytd-menu-service-item-renderer`
+branch is a different, unaffected component and was left as-is.

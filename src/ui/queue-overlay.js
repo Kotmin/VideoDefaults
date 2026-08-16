@@ -25,11 +25,14 @@ const LEGACY_CARD_BUTTON_SELECTOR = '#menu button';
 const LEGACY_HOVER_SETTLE_MS = 300;
 // ponytail: legacy search-result cards (`ytd-video-renderer`) open a Polymer popup shaped
 // differently from the view-model system's — items are `ytd-menu-service-item-renderer`
-// under `#items`, not `yt-list-item-view-model[role="menuitem"]`. Confirmed via a real XPath
+// under `#items`, not `yt-list-item-view-model [role="menuitem"]`. Confirmed via a real XPath
 // captured from a live browser. Position 0 is "Add to queue" here too, same as the
 // view-model shape.
+// YouTube moved `role="menuitem"` off `yt-list-item-view-model` itself and onto its inner
+// `<button>`/`<a>` (confirmed live, 2026-08-16) — the wrapper is now `role="presentation"`.
+// Selecting the descendant instead of the wrapper keeps position-0 = "Add to queue".
 const QUEUE_MENU_ITEM_SELECTOR = [
-  'ytd-popup-container yt-list-item-view-model[role="menuitem"]',
+  'ytd-popup-container yt-list-item-view-model [role="menuitem"]',
   'ytd-popup-container ytd-menu-service-item-renderer',
 ].join(', ');
 const MENU_WAIT_TIMEOUT_MS = 1500;

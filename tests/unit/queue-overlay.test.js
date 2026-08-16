@@ -77,7 +77,7 @@ describe('activateQueueTarget', () => {
       querySelector: (sel) => {
         assert.equal(
           sel,
-          'ytd-popup-container yt-list-item-view-model[role="menuitem"], '
+          'ytd-popup-container yt-list-item-view-model [role="menuitem"], '
           + 'ytd-popup-container ytd-menu-service-item-renderer',
         );
         queried = true;

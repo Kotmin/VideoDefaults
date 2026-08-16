@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>YouTube Shorts — Fixture</title>
+</head>
+<body>
+  <div id="page-manager">
+    <ytd-shorts>
+      <div id="shorts-player">
+        <video id="movie_player" playbackRate="1" readyState="4" src="about:blank"></video>
+      </div>
+      <ytd-reel-player-header-renderer>
+        <ytd-menu-renderer>
+          <button aria-label="More actions">More actions</button>
+        </ytd-menu-renderer>
+      </ytd-reel-player-header-renderer>
+      <ytd-reel-player-overlay-renderer>
+        <ytd-reel-action-bar-renderer>
+          <button id="like-button">Like</button>
+          <button id="comments-button">Comments</button>
+          <button id="share-button">Share</button>
+          <button id="remix-button">Remix</button>
+        </ytd-reel-action-bar-renderer>
+      </ytd-reel-player-overlay-renderer>
+    </ytd-shorts>
+  </div>
+</body>
+</html>

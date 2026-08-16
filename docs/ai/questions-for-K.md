@@ -162,3 +162,27 @@ to whichever matches first).
 signal was found in probes to key on instead. Flag if this turns out to
 matter in practice (e.g. your account actually has duplicate-named
 playlists).
+
+---
+
+Dated 2026-08-16. Surfaced while implementing issue #20 (Shorts playlist-
+picker gap).
+
+## Q17 — Shorts "Save to playlist" trigger selector, JSON-inferred only
+
+`findSaveToPlaylistTrigger` now falls back to
+`ytd-reel-player-header-renderer ytd-menu-renderer button` when the
+existing `/watch`-page selector finds nothing, to cover the Shorts
+standalone player (`/shorts/<id>`). This is derived only from a captured
+Shorts-page JSON snapshot's renderer names (`reelPlayerHeaderRenderer`,
+`menuRenderer`, both confirming a "Save to playlist" item) plus this
+codebase's own already-confirmed `<FooRenderer>` -> `ytd-foo-renderer`
+naming convention — it has **not** been checked against a live/rendered
+Shorts DOM (no working headless browser in this sandbox this session
+either; see `docs/probes/save-trigger-dom-findings.md` follow-up section
+for the exact reasoning and what would falsify it).
+**Default:** ship the selector above. If wrong, same failure mode as every
+other best-effort selector in this file: `findSaveToPlaylistTrigger`
+returns `null`, `openPlaylistOverlay` no-ops, safe no-op with no user-
+visible error, just `Shift+P` staying silently unavailable on Shorts.
+Please confirm the real selector live when convenient.

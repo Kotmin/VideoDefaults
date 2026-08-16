@@ -105,6 +105,7 @@ describe('isLoggedIn', () => {
 
 describe('findSaveToPlaylistTrigger', () => {
   const SAVE_SELECTOR = '#flexible-item-buttons > yt-button-view-model button[aria-label]';
+  const SHORTS_SELECTOR = 'ytd-reel-player-header-renderer ytd-menu-renderer button';
 
   it('returns the button matching the Save wrapper selector', () => {
     const btn = {};
@@ -112,9 +113,30 @@ describe('findSaveToPlaylistTrigger', () => {
     assert.equal(findSaveToPlaylistTrigger(doc), btn);
   });
 
-  it('returns null when the Save wrapper is absent', () => {
+  it('returns null when neither the watch-page nor the Shorts selector matches', () => {
     const doc = { querySelector: () => null };
     assert.equal(findSaveToPlaylistTrigger(doc), null);
+  });
+
+  it('prefers the watch-page selector over the Shorts fallback when both match', () => {
+    const watchBtn = {};
+    const shortsBtn = {};
+    const doc = {
+      querySelector: (sel) => {
+        if (sel === SAVE_SELECTOR) return watchBtn;
+        if (sel === SHORTS_SELECTOR) return shortsBtn;
+        return null;
+      },
+    };
+    assert.equal(findSaveToPlaylistTrigger(doc), watchBtn);
+  });
+
+  it('falls back to the Shorts header menu button when the watch-page selector finds nothing', () => {
+    const shortsBtn = {};
+    const doc = {
+      querySelector: (sel) => (sel === SHORTS_SELECTOR ? shortsBtn : null),
+    };
+    assert.equal(findSaveToPlaylistTrigger(doc), shortsBtn);
   });
 });
 
